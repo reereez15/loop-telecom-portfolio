@@ -1,6 +1,6 @@
 import { useTheme, type ThemePref } from '../../utils/theme'
 
-const OPTIONS: [ThemePref, string][] = [['system', '시스템'], ['light', '라이트'], ['dark', '다크']]
+const OPTIONS: [ThemePref, string][] = [['light', '라이트'], ['dark', '다크']]
 
 // 상단 바의 해·달 버튼: 라이트 ↔ 다크 바로 전환
 export function ThemeToggle() {
@@ -16,7 +16,7 @@ export function ThemeToggle() {
   )
 }
 
-// 이름 메뉴 안의 "화면 테마" (시스템 / 라이트 / 다크)
+// 이름 메뉴 안의 "화면 테마" (라이트 / 다크)
 export function ThemeMenuItem() {
   const { pref, setPref } = useTheme()
   return (
