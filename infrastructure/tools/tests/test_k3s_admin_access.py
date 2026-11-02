@@ -102,6 +102,16 @@ class Cluster:
 
 
 class ConfigTests(unittest.TestCase):
+    def test_local_routing_and_other_locations_preserved(self):
+        text = CONFIG.replace('http://telecom-api:', 'http://telecom-api-local:').replace(
+            'http://telecom-web:', 'http://telecom-web-local:')
+        candidate, count = tool.candidate_config(text)
+        self.assertEqual(count, 5)
+        before = [(h, b) for h, b, _, _ in tool.locations(text) if h not in tool.ADMIN_HEADERS]
+        self.assertEqual(before, [(h, b) for h, b, _, _ in tool.locations(candidate)])
+        self.assertIn('http://telecom-api-local:5000', candidate)
+        self.assertIn('http://telecom-web-local:80', candidate)
+
     def test_only_admin_denials_removed(self):
         candidate, count = tool.candidate_config(CONFIG)
         self.assertEqual(count, 5)

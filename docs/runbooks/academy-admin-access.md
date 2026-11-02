@@ -1,85 +1,87 @@
-# 학원망 공통 HTTPS 주소의 ADMIN 권한 기반 접근 전환
+# �п��� ���� HTTPS �ּ��� ADMIN ���� ��� ���� ��ȯ
 
-상태: **전환 도구 구현·시험 / 현장 적용 전**. 2026-10-27 사용자 요청에 따라 PC1·PC2·PC3 이외의 학원망 PC를 프로젝트 외부 사용자로 정의한다. 접속 PC 구분 없이 같은 공개 주소에서 ADMIN 계정은 관리자 페이지를 사용할 수 있도록 전환한다. 인터넷 공개나 VLAN 분리는 아니다.
+����: **2026-11-02 ����� �� ������ 404 ���� ���롤�͸� 401 �� ���� API 404 Ȯ��**. �� API�� ������ ��� 46�� ��ȣ �˻�, ������ ���� 4�� ����, edge 2�� Ready�� ����� ȭ������ Ȯ���ߴ�. �̹� ���� �� ���� ADMIN 200 / CUSTOMER 403 �� ������ ������ ǥ���� ���� ��Ȯ���� ���� �ִ�. [���� ���](../operations/2026-11-02-webapi-release-admin-recovery.md)�� �����Ѵ�.
 
-## 자동 적용 도구로 진행
+2026-10-27 ����� ��û�� ���� PC1��PC2��PC3 �̿��� �п��� PC�� ������Ʈ �ܺ� ����ڷ� �����Ѵ�. ���� PC ���� ���� ���� ���� �ּҿ��� ADMIN ������ ������ �������� ����� �� �ֵ��� ��ȯ�Ѵ�. ���ͳ� ������ VLAN �и��� �ƴϴ�. �ڵ� ������� [�� Ŭ�� ���� ����](webapi-clean-release.md)�� ����Ѵ�.
 
-`infrastructure/tools/k3s-admin-access.py`는 PC1 Ubuntu에서 실행하는 Python 표준 라이브러리 기반 도구다. 새 브랜치는 `admin-role-access-20261027`이며 codex 접두어를 사용하지 않는다. DB 계정·방화벽·9443 정책은 수정하지 않고, 현재 공개 ConfigMap의 알려진 관리자 404 차단만 제거한다. 기존 React RequireAuth와 Flask roles_required를 유지한다.
+## �ڵ� ���� ������ ����
 
-적용 전 두 API 모두 Ready인지 확인하고 실제 실행 이미지의 모든 관리자 route에 ADMIN 래퍼가 있는지 검사한다. 각 API의 익명 dashboard 요청이 401인지도 검사한다. `/api/internal` 차단과 기존 web/API upstream이 다르거나 알려지지 않은 관리자 location이 있으면 설정을 변경하지 않는다. 두 edge Pod의 현재 TLS 환경에서 수정본 `nginx -t`를 수행한다.
+`infrastructure/tools/k3s-admin-access.py`�� PC1 Ubuntu���� �����ϴ� Python ǥ�� ���̺귯�� ��� ������. �� �귣ġ�� `admin-role-access-20261027`�̸� codex ���ξ ������� �ʴ´�. DB ��������ȭ����9443 ��å�� �������� �ʰ�, ���� ���� ConfigMap�� �˷��� ������ 404 ���ܸ� �����Ѵ�. ���� React RequireAuth�� Flask roles_required�� �����Ѵ�.
 
-PC1 Ubuntu에서 도구만 받는다. 기존 수정 파일에 git pull/reset을 수행하지 않는다.
+���� �� �� API ��� Ready���� Ȯ���ϰ� ���� ���� �̹����� ��� ������ route�� ADMIN ���۰� �ִ��� �˻��Ѵ�. �� API�� �͸� dashboard ��û�� 401������ �˻��Ѵ�. `/api/internal` ���ܰ� ���� web/API upstream�� �ٸ��ų� �˷����� ���� ������ location�� ������ ������ �������� �ʴ´�. �� edge Pod�� ���� TLS ȯ�濡�� ������ `nginx -t`�� �����Ѵ�.
+
+PC1 Ubuntu���� ������ �޴´�. ���� ���� ���Ͽ� git pull/reset�� �������� �ʴ´�.
 
 ```bash
 bash <<'BASH'
 set -euo pipefail
 cd "$HOME/telecom-security-project"
 git fetch origin
-git show origin/admin-role-access-20261027:infrastructure/tools/k3s-admin-access.py > "$HOME/k3s-admin-access.py"
+git show origin/admin-redeploy-20261102:infrastructure/tools/k3s-admin-access.py > "$HOME/k3s-admin-access.py"
 python3 -m py_compile "$HOME/k3s-admin-access.py"
 BASH
 ```
 
-위 명령 성공 후 계획을 만든다.
+�� ���� ���� �� ��ȹ�� �����.
 
 ```bash
 sudo -v
 python3 "$HOME/k3s-admin-access.py" plan
 ```
 
-계획은 private 작업 폴더에 원본·수정본·state를 저장하고 diff를 표시한다. edge Pod의 임시 `/tmp` 파일로 검사하되 서비스 설정을 바꾸지는 않는다. `PLAN OK`가 있어야 진행한다. 실행 중인 API 보호 검사나 Nginx 검사에서 멈추면 그 결과를 확인하며 검사를 우회하지 않는다.
+��ȹ�� private �۾� ������ ��������������state�� �����ϰ� diff�� ǥ���Ѵ�. edge Pod�� �ӽ� `/tmp` ���Ϸ� �˻��ϵ� ���� ������ �ٲ����� �ʴ´�. `PLAN OK`�� �־�� �����Ѵ�. ���� ���� API ��ȣ �˻糪 Nginx �˻翡�� ���߸� �� ����� Ȯ���ϸ� �˻縦 ��ȸ���� �ʴ´�.
 
-계획 성공 후:
+��ȹ ���� ��:
 
 ```bash
 loopAdminWork="$(cat "$HOME/.telecom-admin-access-workdir")"
 python3 "$HOME/k3s-admin-access.py" apply --work-dir "$loopAdminWork"
 ```
 
-현재 ConfigMap/Deployment가 계획 때와 달라졌거나 수정본이 임의 변경됐으면 중단한다. 적용 시 nginx.conf 키만 갱신한 뒤 공개 edge Pod를 **하나씩** 재생성하고 각 교체 후 두 Pod Ready를 기다린다. 이는 두 노드 필수 anti-affinity에서 세 번째 Pod를 대기시키지 않기 위한 방식이며 Deployment의 이미지·replica·strategy는 바꾸지 않는다. 순차 교체 중 살아 있는 연결은 끊길 수 있으므로 짧은 점검 시간에 진행한다.
+���� ConfigMap/Deployment�� ��ȹ ���� �޶����ų� �������� ���� ��������� �ߴ��Ѵ�. ���� �� nginx.conf Ű�� ������ �� ���� edge Pod�� **�ϳ���** ������ϰ� �� ��ü �� �� Pod Ready�� ��ٸ���. �̴� �� ��� �ʼ� anti-affinity���� �� ��° Pod�� ����Ű�� �ʱ� ���� ����̸� Deployment�� �̹�����replica��strategy�� �ٲ��� �ʴ´�. ���� ��ü �� ��� �ִ� ������ ���� �� �����Ƿ� ª�� ���� �ð��� �����Ѵ�.
 
 ```bash
 python3 "$HOME/k3s-admin-access.py" status --work-dir "$loopAdminWork"
 ```
 
-`applied-needs-role-tests`, candidate 일치 True, Ready edge 2가 기대값이다. 다른 학원 PC에서 아래 표를 검증해야 완료다.
+`applied-needs-role-tests`, candidate ��ġ True, Ready edge 2�� ��밪�̴�. �ٸ� �п� PC���� �Ʒ� ǥ�� �����ؾ� �Ϸ��.
 
-| 시험 | 기대 결과 |
+| ���� | ��� ��� |
 |---|---|
-| 프로젝트 CA 신뢰 후 https://192.168.3.30 접속 | HTTPS 정상·일반 웹 정상 |
-| 익명 /api/admin/dashboard | 401 JSON |
-| CUSTOMER 로그인 후 같은 API | 403 |
-| ADMIN 로그인 후 /admin 및 같은 API | 관리자 데이터 표시 / 200 |
-| 내부 자동화 API | 기존 edge 404 차단 유지 |
-| PC1·PC2 DB 3306 직접 접근 | 일반 사용자 PC에서 기존 차단 유지 |
+| ������Ʈ CA �ŷ� �� https://192.168.3.30 ���� | HTTPS �����Ϲ� �� ���� |
+| �͸� /api/admin/dashboard | 401 JSON |
+| CUSTOMER �α��� �� ���� API | 403 |
+| ADMIN �α��� �� /admin �� ���� API | ������ ������ ǥ�� / 200 |
+| ���� �ڵ�ȭ API | ���� edge 404 ���� ���� |
+| PC1��PC2 DB 3306 ���� ���� | �Ϲ� ����� PC���� ���� ���� ���� |
 
-계정별 테스트는 별도 브라우저 프로필·로그아웃 후 재로그인으로 구분한다. PC1·PC2·PC3 이외의 PC에서도 반드시 ADMIN 시험을 수행한다. IP·호스트 이름·프론트엔드 플래그를 관리자 권한 판정에 사용하지 않는다. CSRF와 권한 회수 검증은 아래 수동 검증 항목을 따른다.
+������ �׽�Ʈ�� ���� ������ �����ʡ��α׾ƿ� �� ��α������� �����Ѵ�. PC1��PC2��PC3 �̿��� PC������ �ݵ�� ADMIN ������ �����Ѵ�. IP��ȣ��Ʈ �̸�������Ʈ���� �÷��׸� ������ ���� ������ ������� �ʴ´�. CSRF�� ���� ȸ�� ������ �Ʒ� ���� ���� �׸��� ������.
 
-교체 실패 시 도구가 원본 복구를 시도한다. 오류 후 state 파일을 지우거나 apply를 반복하지 않는다. 수동 복구:
+��ü ���� �� ������ ���� ������ �õ��Ѵ�. ���� �� state ������ ����ų� apply�� �ݺ����� �ʴ´�. ���� ����:
 
 ```bash
 python3 "$HOME/k3s-admin-access.py" rollback --work-dir "$loopAdminWork"
 ```
 
-복구는 원래 공개 관리자 404 차단을 되돌리고 두 edge Pod를 다시 순차 교체한다. 동료가 nginx.conf를 바꾸면 덮어쓰지 않고 중단한다. 작업 폴더·포인터는 비공개로 보관하고 Git에 올리지 않는다.
+������ ���� ���� ������ 404 ������ �ǵ����� �� edge Pod�� �ٽ� ���� ��ü�Ѵ�. ���ᰡ nginx.conf�� �ٲٸ� ����� �ʰ� �ߴ��Ѵ�. �۾� �����������ʹ� ������� �����ϰ� Git�� �ø��� �ʴ´�.
 
-도구의 변환·권한 검사·잘못된/동시 변경 거부·원본 보존·순차 교체·실패 복구를 모의 클러스터 시험으로 검증했다. 실서버 적용·외부 PC의 CUSTOMER/ADMIN 시험은 아직 수행하지 않았다. 아래 수동 수정 절차는 대안이며 자동 적용 중 혼용하지 않는다.
+������ ��ȯ������ �˻硤�߸���/���� ���� �źΡ����� ���������� ��ü������ ������ ���� Ŭ������ �������� �����ߴ�. 2026-11-02���� ��� ���� Service ������ �����ϴ� ������ 13�� �׽�Ʈ�� ����ߴ�. �Ǽ��� ���롤�͸� 401������ API 404�� Ȯ��������, �̹� ���� �� �ܺ� PC�� CUSTOMER/ADMIN ������ ���� Ȯ�� ����̴�. �Ʒ� ���� ���� ������ ����̸� �ڵ� ���� �� ȥ������ �ʴ´�.
 
-## 목표와 변경 범위
+## ��ǥ�� ���� ����
 
-- 같은 `https://192.168.3.30`에서 CUSTOMER는 고객 기능, ADMIN은 관리자 기능을 사용한다.
-- 관리자 여부는 pfSense나 브라우저가 아니라 Flask의 서버 세션·사용자 역할로 판단한다. 9443 자동 리디렉션을 추가하지 않는다.
-- pfSense의 기존 `.3.0/24 → .3.30:443 → .7.185:30443`과 반환 SNAT를 유지한다. 다른 대역 사용자는 별도 라우팅 검토 대상이다.
-- 공개 `telecom-edge-config`의 관리자 경로 404 블록만 제거한다. `/api/internal` 차단, TLS, proxy 헤더, 기존 9443·관리 GUI·SSH·DB 접근 정책은 유지한다.
-- k3s public edge 변경은 그 edge로 연결된 기존 8443/직접 NodePort에도 적용된다. `.3.30`에만 한정된 변경이 아니다. 서버 RBAC는 모든 해당 경로에서 동작해야 한다.
+- ���� `https://192.168.3.30`���� CUSTOMER�� ���� ���, ADMIN�� ������ ����� ����Ѵ�.
+- ������ ���δ� pfSense�� �������� �ƴ϶� Flask�� ���� ���ǡ������ ���ҷ� �Ǵ��Ѵ�. 9443 �ڵ� ���𷺼��� �߰����� �ʴ´�.
+- ���� ���� ��δ� pfSense `.3.30:443`�� HAProxy�� �� VM�� `30443`���� �����Ѵ�. �� ������ HAProxy��NAT����ȯ ��θ� �������� �ʴ´�. ���� PC1 ���� NAT���� ��ȯ�� �̷��� [�� �ڵ� ��ȯ ���](../operations/2026-10-30-web-ha-failover.md)�� �����Ѵ�.
+- ���� `telecom-edge-config`�� ������ ��� 404 ���ϸ� �����Ѵ�. `/api/internal` ����, TLS, proxy ���, ���� 9443������ GUI��SSH��DB ���� ��å�� �����Ѵ�.
+- k3s public edge ������ �� edge�� ����� ���� 8443/���� NodePort���� ����ȴ�. `.3.30`���� ������ ������ �ƴϴ�. ���� RBAC�� ��� �ش� ��ο��� �����ؾ� �Ѵ�.
 
-## 1. 저장소 코드 검토와 현장 사전 검사
+## 1. ����� �ڵ� ����� ���� ���� �˻�
 
-사용자 요청에 따라 [DB 네트워크 접근 제한·앱 계정 분리](mysql-network-access-hardening.md)를 별도로 진행한다. 관리자 웹 허용을 위해 3306을 사용자에게 개방하지 않는다. DB 변경과 공개 관리자 전환은 각각 검증하며 한 번에 적용하지 않는다.
+����� ��û�� ���� [DB ��Ʈ��ũ ���� ���ѡ��� ���� �и�](mysql-network-access-hardening.md)�� ������ �����Ѵ�. ������ �� ����� ���� 3306�� ����ڿ��� �������� �ʴ´�. DB ����� ���� ������ ��ȯ�� ���� �����ϸ� �� ���� �������� �ʴ´�.
 
-기준 소스 `69fff4c`의 `backend/app` AST 검사에서 `/api/admin` 아래 route 선언 42개에 모두 `@roles_required(ROLE_ADMIN)`이 있었다. `core/permissions.py`는 미로그인 401, 역할 불일치 403, 변경 요청 CSRF 검사를 수행한다. `core/sessions.py`는 매 요청 DB 세션과 사용자 활성·잠금 상태를 확인한다. `frontend/src/components/common/RequireAuth.tsx`는 화면 진입 제어를 담당한다.
+���� �ҽ� `69fff4c`�� `backend/app` AST �˻翡�� `/api/admin` �Ʒ� route ���� 42���� ��� `@roles_required(ROLE_ADMIN)`�� �־���. `core/permissions.py`�� �̷α��� 401, ���� ����ġ 403, ���� ��û CSRF �˻縦 �����Ѵ�. `core/sessions.py`�� �� ��û DB ���ǰ� ����� Ȱ������� ���¸� Ȯ���Ѵ�. `frontend/src/components/common/RequireAuth.tsx`�� ȭ�� ���� ��� ����Ѵ�.
 
-정적 검사이며 현장 실행 이미지와 같다고 단정할 수 없다. 로컬 Python에는 Flask/pytest 의존성이 없어 테스트 스위트는 실행하지 않았다. 기존 PC3 9443에서 CUSTOMER 거부·ADMIN 성공을 먼저 확인하고 아래로 **실행 중인 두 API 이미지**를 검사한다.
+���� �˻��̸� ���� ���� �̹����� ���ٰ� ������ �� ����. ���� Python���� Flask/pytest �������� ���� �׽�Ʈ ����Ʈ�� �������� �ʾҴ�. ���� PC3 9443���� CUSTOMER �źΡ�ADMIN ������ ���� Ȯ���ϰ� �Ʒ��� **���� ���� �� API �̹���**�� �˻��Ѵ�.
 
 PC1 Ubuntu:
 
@@ -88,7 +90,7 @@ sudo k3s kubectl get nodes -o wide
 sudo k3s kubectl -n telecom get pods -o wide
 ```
 
-두 노드 Ready, API·edge 준비 상태 정상일 때 다음 블록을 실행한다. DB에 쓰지 않고 별도 Python 프로세스에서 등록된 핸들러의 권한 래퍼를 검사한다. 사용자 세션/비밀번호는 출력하지 않는다.
+�� ��� Ready, API��edge �غ� ���� ������ �� ���� ������ �����Ѵ�. DB�� ���� �ʰ� ���� Python ���μ������� ��ϵ� �ڵ鷯�� ���� ���۸� �˻��Ѵ�. ����� ����/��й�ȣ�� ������� �ʴ´�.
 
 ```bash
 bash <<'BASH'
@@ -96,7 +98,7 @@ set -euo pipefail
 pods="$(sudo k3s kubectl -n telecom get pods -l app=telecom-api -o name)"
 test -n "$pods"
 for pod in $pods; do
-  echo "검사: $pod"
+  echo "�˻�: $pod"
   sudo k3s kubectl -n telecom exec -i "$pod" -c api -- python - <<'PY'
 import inspect
 from wsgi import app
@@ -120,17 +122,17 @@ for rule in app.url_map.iter_rules():
         bad.append(rule.rule)
 print('admin routes:', count, 'missing role wrapper:', bad)
 if not count or bad:
-    raise SystemExit('중단: 실행 이미지의 관리자 보호를 확인해야 합니다.')
+    raise SystemExit('�ߴ�: ���� �̹����� ������ ��ȣ�� Ȯ���ؾ� �մϴ�.')
 PY
 done
 BASH
 ```
 
-검사 성공도 전체 보안 검증은 아니다. 단계 5의 실제 401/403/200 시험이 필수다. 실행 이미지에서 래퍼 구조가 다르거나 실패하면 공개 차단을 제거하지 않고 소스·이미지부터 확인한다.
+�˻� ������ ��ü ���� ������ �ƴϴ�. �ܰ� 5�� ���� 401/403/200 ������ �ʼ���. ���� �̹������� ���� ������ �ٸ��ų� �����ϸ� ���� ������ �������� �ʰ� �ҽ����̹������� Ȯ���Ѵ�.
 
-## 2. PC1 Ubuntu: 설정 백업과 수정본 추출
+## 2. PC1 Ubuntu: ���� ����� ������ ����
 
-이후 명령은 같은 Ubuntu 셸에서 진행한다. 실행 전 전체 노드가 Ready이고 기존 공개/관리 경로가 정상이어야 한다.
+���� ������ ���� Ubuntu �п��� �����Ѵ�. ���� �� ��ü ��尡 Ready�̰� ���� ����/���� ��ΰ� �����̾�� �Ѵ�.
 
 ```bash
 loopAdminDir="$HOME/telecom-admin-access-$(date +%Y%m%d-%H%M%S)"
@@ -149,7 +151,7 @@ echo "$loopAdminDir"
 nano "$loopAdminDir/nginx-candidate.conf"
 ```
 
-아래와 같은 **관리 페이지·관리 API 전용 return 404 블록만 삭제**한다.
+�Ʒ��� ���� **���� ������������ API ���� return 404 ���ϸ� ����**�Ѵ�.
 
 ```nginx
 location = /admin { return 404; }
@@ -158,28 +160,28 @@ location = /api/admin { return 404; }
 location ^~ /api/admin/ { return 404; }
 ```
 
-현장에 `location ~ ^/api/admin/` 등 정규식으로 같은 차단을 추가했다면 그 관리자 차단도 확인한다. 다른 설정 형태라면 자동 치환하지 말고 차이를 검토한다.
+���忡 `location ~ ^/api/admin/` �� ���Խ����� ���� ������ �߰��ߴٸ� �� ������ ���ܵ� Ȯ���Ѵ�. �ٸ� ���� ���¶�� �ڵ� ġȯ���� ���� ���̸� �����Ѵ�.
 
-아래 내부 자동화 API 차단은 그대로 남겨야 한다.
+�Ʒ� ���� �ڵ�ȭ API ������ �״�� ���ܾ� �Ѵ�.
 
 ```nginx
 location = /api/internal { return 404; }
 location ^~ /api/internal/ { return 404; }
 ```
 
-기존 `/api/`는 `http://telecom-api:5000`, `/`는 `http://telecom-web:80`으로 프록시하는 상태를 유지한다. `/admin`은 기존 `/`에서 React로, `/api/admin/...`은 기존 `/api/`에서 Flask로 전달된다. 별도 DB 연결 설정은 추가하지 않는다.
+���� `/api/`�� `http://telecom-api-local:5000`, `/`�� `http://telecom-web-local:80` ������ �״�� �����Ѵ�. ������ ���� Cluster ����� `telecom-api:5000`��`telecom-web:80`�� �ν������� ��� ��쿡�� upstream�� ��ü���� �ʴ´�. `/admin`�� ���� `/`���� React��, `/api/admin/...`�� ���� `/api/`���� Flask�� ���޵ȴ�. ���� DB ���� ������ �߰����� �ʴ´�.
 
-nano 저장: Ctrl+O, Enter, Ctrl+X. 변경 확인:
+nano ����: Ctrl+O, Enter, Ctrl+X. ���� Ȯ��:
 
 ```bash
 diff -u "$loopAdminDir/nginx-before.conf" "$loopAdminDir/nginx-candidate.conf"
 ```
 
-diff 종료 코드 1은 차이가 있다는 뜻이다. 관리자 차단 외에 TLS·internal 차단·헤더·upstream 변경이 보이면 진행하지 않는다.
+diff ���� �ڵ� 1�� ���̰� �ִٴ� ���̴�. ������ ���� �ܿ� TLS��internal ���ܡ������upstream ������ ���̸� �������� �ʴ´�.
 
-## 3. 실행 중 edge와 같은 환경에서 문법 검사
+## 3. ���� �� edge�� ���� ȯ�濡�� ���� �˻�
 
-기존 설정 파일을 덮어쓰지 않고 `/tmp`에 수정본을 전달해 검사한다. `edge` 컨테이너 이름이 다르면 먼저 실제 Deployment를 확인한다.
+���� ���� ������ ����� �ʰ� `/tmp`�� �������� ������ �˻��Ѵ�. `edge` �����̳� �̸��� �ٸ��� ���� ���� Deployment�� Ȯ���Ѵ�.
 
 ```bash
 (
@@ -193,9 +195,9 @@ done
 )
 ```
 
-모든 검사에서 `syntax is ok`, `test is successful`을 확인해야 다음으로 진행한다. 이 명령은 실제 Nginx reload를 하지 않는다.
+��� �˻翡�� `syntax is ok`, `test is successful`�� Ȯ���ؾ� �������� �����Ѵ�. �� ������ ���� Nginx reload�� ���� �ʴ´�.
 
-## 4. ConfigMap의 nginx.conf만 변경하고 public edge 재시작
+## 4. ConfigMap�� nginx.conf�� �����ϰ� public edge �����
 
 ```bash
 python3 - "$loopAdminDir" <<'PY'
@@ -212,18 +214,18 @@ PY
 sudo k3s kubectl -n telecom patch configmap telecom-edge-config --type=merge --patch-file "$loopAdminDir/patch.json"
 ```
 
-성공한 경우에만 다음 실행. Conflict면 다른 사람이 설정을 변경한 것이므로 새 원본과 비교해야 한다. resourceVersion을 지워 강제로 덮어쓰지 않는다.
+������ ��쿡�� ���� ����. Conflict�� �ٸ� ����� ������ ������ ���̹Ƿ� �� ������ ���ؾ� �Ѵ�. resourceVersion�� ���� ������ ����� �ʴ´�.
 
 ```bash
 sudo k3s kubectl -n telecom rollout restart deployment/telecom-edge
 sudo k3s kubectl -n telecom rollout status deployment/telecom-edge --timeout=180s
 ```
 
-ConfigMap이 바뀌어도 subPath 마운트는 자동 갱신되지 않으며 Nginx도 설정 재읽기가 필요하다. 따라서 public edge Pod를 순차 재생성한다. DB·API·web 이미지·관리 edge 재배포는 필요 없다.
+ConfigMap�� �ٲ� subPath ����Ʈ�� �ڵ� ���ŵ��� ������ Nginx�� ���� ���бⰡ �ʿ��ϴ�. ���� public edge Pod�� ���� ������Ѵ�. DB��API��web �̹��������� edge ������� �ʿ� ����.
 
-## 5. PC1·PC2·PC3 이외 학원 PC에서 권한 시험
+## 5. PC1��PC2��PC3 �̿� �п� PC���� ���� ����
 
-프로젝트 CA 공개 인증서를 신뢰 저장소에 등록한 Windows 계정으로 시험한다. 외부 사용자 PC에서 admin 계정까지 허용하는 정책이며 관리자 비밀번호 노출 면적은 기존 PC3 한정 정책보다 넓어진다.
+������Ʈ CA ���� �������� �ŷ� ����ҿ� ����� Windows �������� �����Ѵ�. �ܺ� ����� PC���� admin �������� ����ϴ� ��å�̸� ������ ��й�ȣ ���� ������ ���� PC3 ���� ��å���� �о�����.
 
 ```powershell
 curl.exe --noproxy "*" --ssl-revoke-best-effort --connect-timeout 3 --max-time 8 -sS -i "https://192.168.3.30/api/health/ready"
@@ -231,31 +233,31 @@ curl.exe --noproxy "*" --ssl-revoke-best-effort --connect-timeout 3 --max-time 8
 curl.exe --noproxy "*" --ssl-revoke-best-effort --connect-timeout 3 --max-time 8 -sS -i "https://192.168.3.30/api/internal/probe"
 ```
 
-각각 200(DB ok), 401(JSON), 404(edge 차단)가 기대값이다. `/api/internal/probe` 404 하나만으로 차단을 증명할 수 없으므로 적용된 `nginx -T`의 internal location 블록도 함께 확인한다.
+���� 200(DB ok), 401(JSON), 404(edge ����)�� ��밪�̴�. `/api/internal/probe` 404 �ϳ������� ������ ������ �� �����Ƿ� ����� `nginx -T`�� internal location ���ϵ� �Բ� Ȯ���Ѵ�.
 
-브라우저에서 일반 CUSTOMER로 로그인하고 같은 출처의 콘솔에서 읽기 요청만 시험한다. 비밀 쿠키를 복사하지 않는다.
+���������� �Ϲ� CUSTOMER�� �α����ϰ� ���� ��ó�� �ֿܼ��� �б� ��û�� �����Ѵ�. ��� ��Ű�� �������� �ʴ´�.
 
 ```javascript
 fetch('/api/admin/dashboard', {credentials: 'same-origin'})
   .then(async r => console.log(r.status, await r.json()))
 ```
 
-CUSTOMER는 403이어야 한다. 로그아웃 후 ADMIN으로 다시 로그인하면 같은 요청이 200, `/admin`의 업무 조회가 정상이어야 한다. 고객에게 관리자 데이터가 보이면 즉시 단계 6으로 되돌린다.
+CUSTOMER�� 403�̾�� �Ѵ�. �α׾ƿ� �� ADMIN���� �ٽ� �α����ϸ� ���� ��û�� 200, `/admin`�� ���� ��ȸ�� �����̾�� �Ѵ�. �������� ������ �����Ͱ� ���̸� ��� �ܰ� 6���� �ǵ�����.
 
-CSRF 확인은 ADMIN 세션에서 **읽기 전용 시험을 마친 뒤**, 운영 데이터를 수정하지 않는 로그아웃 요청으로 수행할 수 있다.
+CSRF Ȯ���� ADMIN ���ǿ��� **�б� ���� ������ ��ģ ��**, � �����͸� �������� �ʴ� �α׾ƿ� ��û���� ������ �� �ִ�.
 
 ```javascript
 fetch('/api/auth/logout', {method: 'POST', credentials: 'same-origin'})
   .then(async r => console.log(r.status, await r.json()))
 ```
 
-CSRF 헤더가 없으므로 403 / CSRF_FAILED가 기대값이다. UI 로그아웃은 정상 성공해야 한다. 이전 9443 경로의 쿠키와 새 `.3.30` 쿠키는 다른 IP이므로 `.3.30`에서 다시 로그인한다.
+CSRF ����� �����Ƿ� 403 / CSRF_FAILED�� ��밪�̴�. UI �α׾ƿ��� ���� �����ؾ� �Ѵ�. ���� 9443 ����� ��Ű�� �� `.3.30` ��Ű�� �ٸ� IP�̹Ƿ� `.3.30`���� �ٽ� �α����Ѵ�.
 
-운영 계정의 역할을 시험 목적으로 변경하지 않는다. 권한 회수 검증은 별도 시험 ADMIN 계정으로 역할 회수 후 기존 세션 요청이 403인지 확인한다. 앱 감사 로그에서 실제 사용자 ID별 기록을 확인한다.
+� ������ ������ ���� �������� �������� �ʴ´�. ���� ȸ�� ������ ���� ���� ADMIN �������� ���� ȸ�� �� ���� ���� ��û�� 403���� Ȯ���Ѵ�. �� ���� �α׿��� ���� ����� ID�� ����� Ȯ���Ѵ�.
 
-## 6. 롤백
+## 6. �ѹ�
 
-원래 Ubuntu 셸의 `loopAdminDir`를 사용한다. 변수가 없어졌다면 단계 2에서 출력한 정확한 폴더를 지정한다. 다른 작업자가 ConfigMap을 수정했다면 원본을 덮어쓰기 전에 변경을 조정한다.
+���� Ubuntu ���� `loopAdminDir`�� ����Ѵ�. ������ �������ٸ� �ܰ� 2���� ����� ��Ȯ�� ������ �����Ѵ�. �ٸ� �۾��ڰ� ConfigMap�� �����ߴٸ� ������ ����� ���� ������ �����Ѵ�.
 
 ```bash
 python3 - "$loopAdminDir" <<'PY'
@@ -267,21 +269,21 @@ PY
 sudo k3s kubectl -n telecom patch configmap telecom-edge-config --type=merge --patch-file "$loopAdminDir/rollback.json"
 ```
 
-patch 성공 후:
+patch ���� ��:
 
 ```bash
 sudo k3s kubectl -n telecom rollout restart deployment/telecom-edge
 sudo k3s kubectl -n telecom rollout status deployment/telecom-edge --timeout=180s
 ```
 
-**rollout undo만으로는 변경한 ConfigMap 내용이 복구되지 않는다.** 공개 admin 404 복구, 일반 readiness 200, 기존 PC3 관리자 9443 회귀를 확인한다.
+**rollout undo�����δ� ������ ConfigMap ������ �������� �ʴ´�.** ���� admin 404 ����, �Ϲ� readiness 200, ���� PC3 ������ 9443 ȸ�͸� Ȯ���Ѵ�.
 
-## 운영상 제한과 다음 개선
+## ��� ���Ѱ� ���� ����
 
-- 학원망 외부 사용자를 논리적으로 구분했을 뿐 VLAN/라우팅으로 격리한 것은 아니다. 클라이언트에 다른 IP를 부여하거나 PC1~3에서 접속했다는 이유로 ADMIN 권한을 부여하지 않는다.
-- NodePort 직접 접근 등 pfSense 우회 경로 차단은 별도다. 이 변경은 방화벽·SSH·DB·관제 제품 관리 UI를 개방하지 않는다.
-- pfSense는 TLS를 k3s로 전달한다. pfSense의 Suricata가 암호화된 모든 HTTP 본문을 볼 수 있다고 가정하지 않는다. 앱/Nginx 감사 로그와 연계한다.
-- 현재 SNAT 및 NodePort 경로는 앱에 원본 IP가 아닌 공통 주소를 보이게 할 수 있다. 앱의 `LOGIN_MAX_PER_IP=20` 또는 IP 자동 차단이 전체 사용자를 함께 제한할 수 있으므로 사용자 ID·세션 기준 기록과 함께 시험한다. IP 확인을 위해 임의 X-Forwarded-For 신뢰를 허용하거나 로그인 제한을 끄지 않는다. 원본 IP 보존은 별도 네트워크 설계 과제다.
-- 외부 사용자에 관리자 로그인 경로를 제공하므로 강한 관리자 비밀번호·계정별 책임 추적이 필요하며 MFA·관리자 재인증을 후속 검토한다. 현재 MFA 구현 완료로 기록하지 않는다.
+- �п��� �ܺ� ����ڸ� ���������� �������� �� VLAN/��������� �ݸ��� ���� �ƴϴ�. Ŭ���̾�Ʈ�� �ٸ� IP�� �ο��ϰų� PC1~3���� �����ߴٴ� ������ ADMIN ������ �ο����� �ʴ´�.
+- NodePort ���� ���� �� pfSense ��ȸ ��� ������ ������. �� ������ ��ȭ����SSH��DB������ ��ǰ ���� UI�� �������� �ʴ´�.
+- pfSense�� TLS�� k3s�� �����Ѵ�. pfSense�� Suricata�� ��ȣȭ�� ��� HTTP ������ �� �� �ִٰ� �������� �ʴ´�. ��/Nginx ���� �α׿� �����Ѵ�.
+- ���� SNAT �� NodePort ��δ� �ۿ� ���� IP�� �ƴ� ���� �ּҸ� ���̰� �� �� �ִ�. ���� `LOGIN_MAX_PER_IP=20` �Ǵ� IP �ڵ� ������ ��ü ����ڸ� �Բ� ������ �� �����Ƿ� ����� ID������ ���� ��ϰ� �Բ� �����Ѵ�. IP Ȯ���� ���� ���� X-Forwarded-For �ŷڸ� ����ϰų� �α��� ������ ���� �ʴ´�. ���� IP ������ ���� ��Ʈ��ũ ���� ������.
+- �ܺ� ����ڿ� ������ �α��� ��θ� �����ϹǷ� ���� ������ ��й�ȣ�������� å�� ������ �ʿ��ϸ� MFA�������� �������� �ļ� �����Ѵ�. ���� MFA ���� �Ϸ�� ������� �ʴ´�.
 
-근거: [OWASP 권한 검사](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html), [Kubernetes ConfigMap](https://kubernetes.io/docs/concepts/configuration/configmap/). 최신 복구 결과는 [2026-10-27 기록](../operations/2026-10-27-service-recovery.md)을 참조한다.
+�ٰ�: [OWASP ���� �˻�](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html), [Kubernetes ConfigMap](https://kubernetes.io/docs/concepts/configuration/configmap/). �ֽ� ���� ����� [2026-10-27 ���](../operations/2026-10-27-service-recovery.md)�� �����Ѵ�.
