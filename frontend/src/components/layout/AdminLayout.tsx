@@ -5,6 +5,7 @@ import { ROLE_LABEL } from '../../utils/format'
 import { useApi } from '../../utils/useApi'
 import Dropdown from '../common/Dropdown'
 import Logo from '../common/Logo'
+import SessionClock from '../common/SessionClock'
 import { ThemeMenuItem, ThemeToggle } from '../common/ThemeControls'
 
 // 상단 메뉴: 대시보드는 로고, 서비스 메뉴는 펼쳐 두고 보안·관제 도구는 드롭다운으로 묶는다.
@@ -26,7 +27,7 @@ const SECURITY_MENU: [string, string][] = [
 ]
 
 export default function AdminLayout() {
-  const { user, logout } = useAuth()
+  const { user, session, logout } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const tools = useApi<{ links: MonitoringLink[] }>('/admin/monitoring-links')
@@ -70,6 +71,7 @@ export default function AdminLayout() {
             {(close) => (
               <>
                 <li className="user-menu__meta">{user ? ROLE_LABEL[user.role] : ''} · {user?.email}</li>
+                {session && <SessionClock since={session.created_at} idleMinutes={session.idle_minutes} />}
                 <ThemeMenuItem />
                 <li className="user-menu__sep" role="separator" />
                 <li><Link to="/admin/settings" onClick={close}>프로필 설정</Link></li>

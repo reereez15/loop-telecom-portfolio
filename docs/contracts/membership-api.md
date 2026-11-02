@@ -24,8 +24,12 @@
 
 ## 업그레이드 카드 — 등급 직접 구매 (2026-11-02)
 
-등급(Plus·VIP)을 1회성 결제로 바로 구매할 수 있다. 가격은 별도 컬럼 없이 `MembershipTier.min_monthly_fee`를 그대로 쓴다
-(`tier_dict()`의 `price` 필드, membership/tiers.py). 모의 카드·카카오페이 둘 다 지원하며, payments 모듈과 같은 방어를 쓴다:
+등급(Plus·VIP)을 1회성 결제로 바로 구매할 수 있다. 가격은 `membership/tiers.py`의 코드 상수 `UPGRADE_PRICES`
+(Plus 14,900원·VIP 34,900원)이며 `tier_dict()`의 `price` 필드로 내려간다. 요금제 월 요금 기준 자동 가입 조건
+(`MembershipTier.min_monthly_fee`, 35,000·60,000원)과는 별개 값이다 — 처음엔 하나로 합쳐 썼다가, 자동 가입 조건보다
+구매 가격을 낮게 책정하면서(요금제만 쓰면 상위 등급이 공짜로 열려버리는 문제가 생겨) 분리했다. 공용 DB 스키마를 바꾸지
+않으려고 가격 컬럼 대신 코드 상수로 두었고, 가격 변경은 그 한 줄만 고치면 된다.
+모의 카드·카카오페이 둘 다 지원하며, payments 모듈과 같은 방어를 쓴다:
 서버가 가격을 다시 계산(요청 금액은 참고만), `(user_id, idempotency_key)` 멱등, 카카오페이 승인 금액 불일치 시 즉시 취소.
 
 새 테이블 `membership_upgrades` (Migration `a1f5c9e2b4d7`, 수동 적용은 `database/schema/05_membership_upgrades.sql`).

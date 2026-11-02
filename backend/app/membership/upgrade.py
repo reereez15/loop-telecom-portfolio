@@ -1,6 +1,8 @@
 """멤버십 등급 직접 구매(업그레이드) — docs/contracts/membership-api.md 확장.
 
-- 가격: MembershipTier.min_monthly_fee 를 1회성 구매 가격으로 그대로 쓴다(별도 가격 컬럼 없음, tiers.py tier_dict 의 "price")
+- 가격: tiers.UPGRADE_PRICES (코드 상수, tier_dict 의 "price"). 요금제 월 요금 기준 자동 가입 조건(min_monthly_fee)과는
+  별개 값이다 — 자동 가입 조건을 낮은 금액으로 바꾸면 요금제만으로 상위 등급이 공짜로 열려버리므로 분리했다.
+  공용 DB 스키마를 바꾸지 않기 위해 가격 컬럼을 추가하지 않고 코드 상수로 둔다.
 - 결제(payments) 모듈과 같은 방어: 서버가 가격을 다시 계산(요청 금액은 참고만), (user_id, idempotency_key) 멱등,
   같은 키·다른 내용은 409, 카카오페이 승인 금액이 서버 가격과 다르면 즉시 취소
 - 동시성: 계정 행을 잠그고(SELECT ... FOR UPDATE) "지금 등급이 구매 시작 시점 등급과 같을 때만" 조건부 UPDATE로 반영
@@ -21,7 +23,7 @@ from ..core.validation import body, idempotency_conflict, idempotency_key, reque
 from ..extensions import db
 from ..models import MembershipAccount, MembershipTier, MembershipUpgrade, User
 from . import service
-from .tiers import customer_rank, tier_name
+from .tiers import customer_rank, tier_name, upgrade_price
 from ..payments import gateway, kakaopay
 
 bp = Blueprint("membership_upgrade", __name__, url_prefix="/api/membership/upgrade")
@@ -31,7 +33,7 @@ PG_TOKEN_RE = re.compile(r"^[A-Za-z0-9]{1,64}$")
 
 
 def _price(tier: MembershipTier) -> int:
-    return tier.min_monthly_fee
+    return upgrade_price(tier)
 
 
 def upgrade_dict(u: MembershipUpgrade, with_events=False) -> dict:

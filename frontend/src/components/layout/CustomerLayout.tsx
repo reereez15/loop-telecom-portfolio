@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../app/providers/AuthProvider'
 import Dropdown from '../common/Dropdown'
 import Logo from '../common/Logo'
+import SessionClock from '../common/SessionClock'
 import { ThemeMenuItem, ThemeToggle } from '../common/ThemeControls'
 
 const GROUPS = [
@@ -12,7 +13,7 @@ const GROUPS = [
 ]
 
 export default function CustomerLayout() {
-  const { user, logout, isAdmin } = useAuth()
+  const { user, session, logout, isAdmin } = useAuth()
   const navigate = useNavigate()
   const onLogout = async () => { await logout(); navigate('/login') }
   return <div className="shell shell--customer">
@@ -35,7 +36,9 @@ export default function CustomerLayout() {
           <ThemeToggle />
           <Dropdown label={`${user?.name ?? ''}님`} className="topnav__user">
             {close => <>
-              <li className="user-menu__meta">{user?.email}</li><ThemeMenuItem />
+              <li className="user-menu__meta">{user?.email}</li>
+              {session && <SessionClock since={session.created_at} idleMinutes={session.idle_minutes} />}
+              <ThemeMenuItem />
               <li className="user-menu__sep" role="separator" />
               <li><Link to="/settings" onClick={close}>프로필·보안 설정</Link></li>
               <li><Link to="/support" onClick={close}>1:1 문의</Link></li>

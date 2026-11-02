@@ -18,7 +18,7 @@ def test_mock_card_purchase_upgrades_tier(client):
                       headers=idem(client))
     assert res.status_code == 201
     body = res.json["data"]["upgrade"]
-    assert body["status"] == "SUCCEEDED" and body["amount"] == 60000 and body["to_tier_rank"] == 2
+    assert body["status"] == "SUCCEEDED" and body["amount"] == 34900 and body["to_tier_rank"] == 2
     acc = MembershipAccount.query.filter_by(user_id=_alice().id).one()
     assert acc.tier.rank == 2  # VIP(GOLD 행)로 반영됨
 
@@ -67,7 +67,7 @@ def test_kakaopay_ready_and_approve_upgrades_tier(client, kakao):
     redirect = res.json["data"]["redirect_url"]
     assert redirect.startswith("https://online-pay.kakao.com/")
     ready_payload = calls[0][1]
-    assert ready_payload["total_amount"] == 60000
+    assert ready_payload["total_amount"] == 34900
     assert ready_payload["approval_url"].startswith("http://localhost:5173/membership/kakaopay/approve?payment_id=")
 
     uid = res.json["data"]["upgrade"]["id"]
