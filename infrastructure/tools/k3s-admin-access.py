@@ -106,10 +106,14 @@ def validate_routes(text):
     for header in (('=', '/api/internal'), ('^~', '/api/internal/')):
         if not any(h == header and body == ('return', '404', ';') for h, body, _, _ in blocks):
             raise ValueError('Required /api/internal 404 block is missing or different.')
-    for header, upstream in ((('/api/',), 'http://telecom-api:5000'), (('/',), 'http://telecom-web:80')):
+    for header, upstreams in (
+        (('/api/',), {'http://telecom-api:5000', 'http://telecom-api-local:5000'}),
+        (('/',), {'http://telecom-web:80', 'http://telecom-web-local:80'}),
+    ):
         bodies = [body for h, body, _, _ in blocks if h == header]
-        if len(bodies) != 1 or not any(bodies[0][i:i + 3] == ('proxy_pass', upstream, ';')
-                                        for i in range(len(bodies[0]))):
+        passes = [bodies[0][i + 1] for i in range(len(bodies[0]) - 2)
+                  if bodies[0][i] == 'proxy_pass' and bodies[0][i + 2] == ';'] if len(bodies) == 1 else []
+        if len(passes) != 1 or passes[0] not in upstreams:
             raise ValueError('Unexpected public API/web upstream; inspect manually.')
 
 
