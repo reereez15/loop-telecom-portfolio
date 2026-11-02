@@ -44,18 +44,19 @@ def _post(path: str, payload: dict) -> dict:
         raise KakaoPayError(f"카카오페이에 연결할 수 없습니다: {err}", None)
 
 
-def _urls(payment_id: int) -> dict:
+def _urls(payment_id: int, section: str) -> dict:
     base = current_app.config["PUBLIC_BASE_URL"].rstrip("/")
-    return {"approval_url": f"{base}/billing/kakaopay/approve?payment_id={payment_id}",
-            "cancel_url": f"{base}/billing/kakaopay/cancel?payment_id={payment_id}",
-            "fail_url": f"{base}/billing/kakaopay/fail?payment_id={payment_id}"}
+    return {"approval_url": f"{base}/{section}/kakaopay/approve?payment_id={payment_id}",
+            "cancel_url": f"{base}/{section}/kakaopay/cancel?payment_id={payment_id}",
+            "fail_url": f"{base}/{section}/kakaopay/fail?payment_id={payment_id}"}
 
 
-def ready(payment_id: int, user_id: int, item_name: str, amount: int) -> dict:
+def ready(payment_id: int, user_id: int, item_name: str, amount: int, section: str = "billing") -> dict:
+    """section: 결제 완료 후 돌아올 프런트엔드 경로(billing/membership 등). 기존 호출은 그대로 billing."""
     return _post("/online/v1/payment/ready", {
         "cid": current_app.config["KAKAOPAY_CID"], "partner_order_id": str(payment_id),
         "partner_user_id": str(user_id), "item_name": item_name[:100], "quantity": 1,
-        "total_amount": amount, "tax_free_amount": 0, **_urls(payment_id)})
+        "total_amount": amount, "tax_free_amount": 0, **_urls(payment_id, section)})
 
 
 def approve(tid: str, payment_id: int, user_id: int, pg_token: str) -> dict:

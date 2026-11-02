@@ -114,7 +114,13 @@ def kakao(monkeypatch):
             tid = f"T{len(calls):010d}"
             return {"tid": tid, "next_redirect_pc_url": f"https://online-pay.kakao.com/mockup/{tid}"}
         if path.endswith("/approve"):
-            amount = fake.approve_amount or Payment.query.filter_by(pg_tid=payload["tid"]).one().amount
+            if fake.approve_amount:
+                amount = fake.approve_amount
+            else:
+                # 요금 납부(Payment)·멤버십 등급 구매(MembershipUpgrade) 둘 다 이 가짜 카카오페이를 쓴다
+                from app.models import MembershipUpgrade
+                pay = Payment.query.filter_by(pg_tid=payload["tid"]).first()
+                amount = pay.amount if pay else MembershipUpgrade.query.filter_by(pg_tid=payload["tid"]).one().amount
             return {"aid": "A1", "tid": payload["tid"], "amount": {"total": amount}}
         if path.endswith("/cancel"):
             return {"status": "CANCEL_PAYMENT"}

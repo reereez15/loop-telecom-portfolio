@@ -22,6 +22,21 @@
 - 변경 전후 rank·사유·행위자·대상을 `security_audit_logs`의 `membership.tier.changed`로 변경과 같은 트랜잭션에 저장한다.
 - 동시 변경 충돌은 409로 반환한다. 실제 사용자 role·세션 권한·허용목록은 변경하지 않는다.
 
-## 업그레이드 카드
+## 업그레이드 카드 — 등급 직접 구매 (2026-11-02)
 
-현재 구매 금액·실제 결제 연동은 미구현이다. 업그레이드 버튼은 `결제 시스템은 준비중입니다.` 안내창만 표시한다. 고객의 rank를 직접 바꾸는 구매 API를 열지 않으며, 성공 결제 없이 등급을 갱신하지 않는다. 추후 결제 연동 시 서버에서 금액·결제 성공·소유권·중복 처리를 검증한 뒤 등급을 변경해야 한다.
+등급(Plus·VIP)을 1회성 결제로 바로 구매할 수 있다. 가격은 별도 컬럼 없이 `MembershipTier.min_monthly_fee`를 그대로 쓴다
+(`tier_dict()`의 `price` 필드, membership/tiers.py). 모의 카드·카카오페이 둘 다 지원하며, payments 모듈과 같은 방어를 쓴다:
+서버가 가격을 다시 계산(요청 금액은 참고만), `(user_id, idempotency_key)` 멱등, 카카오페이 승인 금액 불일치 시 즉시 취소.
+
+새 테이블 `membership_upgrades` (Migration `a1f5c9e2b4d7`, 수동 적용은 `database/schema/05_membership_upgrades.sql`).
+동시성: 계정 행을 잠그고 "구매 시작 시점 등급과 지금 등급이 같을 때만" 조건부 UPDATE로 반영한다 — 그사이 관리자가 등급을
+바꿨거나 다른 채널로 이미 업그레이드했으면 거절하고, 카카오페이 결제는 취소한다. 등급을 환불로 되돌리는 정책이 아직
+없어 관리자 환불 API는 없다(성공한 구매를 취소하려면 당분간 `PATCH /api/admin/membership/customers/{id}/tier`로 수동 변경).
+
+- 가격·구매 가능 여부는 별도 엔드포인트 없이 기존 `GET /api/membership/me`·`/api/membership/tiers` 응답(tier_dict 의 `price`)로 내려간다.
+- `POST /api/membership/upgrade`: 모의 카드. 본문 `{ "tier_rank": 1|2, "card_number": "..." }` + `Idempotency-Key`
+- `POST /api/membership/upgrade/kakaopay/ready|approve|abort`: 카카오페이(payments/kakaopay.py 재사용, `section="membership"` →
+  프런트 복귀 경로가 `/membership/kakaopay/...`)
+- `GET /api/membership/upgrade/me`: 내 구매 내역 (최근 20건)
+- `GET /api/admin/membership/upgrades`: 실제 ADMIN 세션만, 전체 구매 내역 조회(최근 100건)
+- 현재 등급 이하로는 구매할 수 없다(`ALREADY_AT_OR_ABOVE`). 미가입 고객은 `NOT_MEMBER`(먼저 `/api/membership/join`).

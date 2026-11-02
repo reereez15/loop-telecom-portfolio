@@ -25,4 +25,6 @@ def tier_dict(tier):
     tier = customer_tier(tier)
     rank = customer_rank(tier.rank)
     return {"code": TIER_CODES[rank], "name": tier_name(tier), "rank": rank,
-            "earn_rate_bp": tier.earn_rate_bp, "min_monthly_fee": tier.min_monthly_fee}
+            "earn_rate_bp": tier.earn_rate_bp, "min_monthly_fee": tier.min_monthly_fee,
+            # 등급 직접 구매(업그레이드) 1회성 가격. min_monthly_fee 를 그대로 재사용한다(membership/upgrade.py 참고)
+            "price": tier.min_monthly_fee}

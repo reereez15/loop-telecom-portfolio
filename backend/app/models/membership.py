@@ -63,6 +63,34 @@ class Benefit(TimestampMixin, db.Model):
                 "min_tier_rank": min(self.min_tier_rank, 2), "monthly_limit": self.monthly_limit, "is_active": self.is_active}
 
 
+class MembershipUpgrade(TimestampMixin, db.Model):
+    """등급을 돈으로 직접 구매(업그레이드)한 기록.
+
+    amount 는 구매 시점 MembershipTier.min_monthly_fee 를 1회성 구매 가격으로 그대로 쓴다
+    (가격 컬럼을 따로 두지 않아 등급표 하나만 보면 된다. membership/tiers.py tier_dict() 의 "price" 참고).
+    """
+    __tablename__ = "membership_upgrades"
+    __table_args__ = (UniqueConstraint("user_id", "idempotency_key", name="uq_membership_upgrade_idem"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    from_tier_id: Mapped[int] = mapped_column(ForeignKey("membership_tiers.id"), nullable=False)
+    to_tier_id: Mapped[int] = mapped_column(ForeignKey("membership_tiers.id"), nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    transaction_ref: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="MOCK_CARD")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")  # PENDING/SUCCEEDED/FAILED/CANCELED
+    # 카카오페이 테스트 결제: ready 응답의 거래 ID(tid). 승인·취소는 서버가 저장한 이 값으로만 요청한다
+    pg_tid: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "from_tier_id": self.from_tier_id, "to_tier_id": self.to_tier_id,
+                "amount": self.amount, "status": self.status, "method": self.method,
+                "transaction_ref": self.transaction_ref, "created_at": self.created_at.isoformat() + "Z"}
+
+
 class BenefitRedemption(TimestampMixin, db.Model):
     __tablename__ = "benefit_redemptions"
     # 같은 요청 키로 두 번 사용 처리되지 않도록
