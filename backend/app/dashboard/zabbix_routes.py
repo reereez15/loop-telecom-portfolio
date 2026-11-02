@@ -16,13 +16,14 @@ bp = Blueprint('admin_zabbix', __name__, url_prefix='/api/admin')
 TARGETS = {
     'services': 'telecom-services',
     'windows': 'PC2-Windows',
+    'pc1_windows': 'PC1-Windows',
 }
 SERVICE_PORTS = {
-    '192.168.3.19:5000': 'Flask API',
-    '192.168.3.19:443': 'Wazuh Dashboard',
-    '192.168.3.19:3306': 'MySQL',
-    '192.168.3.19:5678': 'n8n',
-    '192.168.3.18:9000': 'Graylog',
+    '192.168.3.19:5000': 'PC2 · Flask API',
+    '192.168.3.19:443': 'PC2 · Wazuh Dashboard',
+    '192.168.3.19:3306': 'PC2 · MySQL',
+    '192.168.3.19:5678': 'PC2 · n8n',
+    '192.168.3.18:9000': 'PC1 · Graylog',
 }
 
 
@@ -77,6 +78,8 @@ def _metric_item(items, patterns):
 
 def _numeric(item):
     try:
+        if item.get('lastclock') in ('0', 0) or str(item.get('state', '0')) != '0':
+            return None
         return round(float(item['lastvalue']), 3)
     except (TypeError, ValueError, KeyError):
         return None
@@ -88,7 +91,8 @@ def zabbix_dashboard():
     base = os.getenv('ZABBIX_API_URL', '').strip()
     token = os.getenv('ZABBIX_API_TOKEN', '').strip()
     result = {'configured': bool(base and token), 'connected': False, 'updated_at': None,
-              'nodes': [], 'services': [], 'metrics': {}, 'history': {}, 'problems': [], 'message': None}
+              'nodes': [], 'services': [], 'metrics': {}, 'history': {},
+              'pc1_metrics': {}, 'pc1_history': {}, 'problems': [], 'message': None}
     if not result['configured']:
         result['message'] = 'ZABBIX_API_URL 및 ZABBIX_API_TOKEN 서버 환경변수를 설정하세요.'
         return ok(result)
@@ -122,23 +126,25 @@ def zabbix_dashboard():
             value = _numeric(item) if item else None
             result['services'].append({'name': label, 'status': ('UP' if value == 1 else 'DOWN' if value == 0 else 'UNKNOWN'),
                                        'checked_at': int(item['lastclock']) if item and item.get('lastclock') else None})
-        windows_items = [x for x in items if x['hostid'] == ids.get(TARGETS['windows'])]
         selectors = {
             'cpu': ['CPU utilization'], 'ram': ['Memory utilization'],
             'disk_c': ['FS [(C:)]: Space: Used, in %'],
         }
         # Template names can vary; not finding an item returns null rather than invented values.
-        for key, patterns in selectors.items():
-            item = _metric_item(windows_items, patterns)
-            result['metrics'][key] = _numeric(item) if item else None
-            result['history'][key] = []
-            if item and item.get('value_type') in ('0', '3'):
-                samples = _rpc('history.get', {
-                    'output': 'extend', 'history': int(item['value_type']),
-                    'itemids': [item['itemid']], 'time_from': int(time.time()) - 3600,
-                    'sortfield': 'clock', 'sortorder': 'ASC', 'limit': 180,
-                }, base, token)
-                result['history'][key] = [{'t': int(p['clock']), 'v': float(p['value'])} for p in samples]
+        for host_key, metrics_key, history_key in [('pc1_windows', 'pc1_metrics', 'pc1_history'),
+                                                   ('windows', 'metrics', 'history')]:
+            windows_items = [x for x in items if x['hostid'] == ids.get(TARGETS[host_key])]
+            for key, patterns in selectors.items():
+                item = _metric_item(windows_items, patterns)
+                result[metrics_key][key] = _numeric(item) if item else None
+                result[history_key][key] = []
+                if item and item.get('value_type') in ('0', '3'):
+                    samples = _rpc('history.get', {
+                        'output': 'extend', 'history': int(item['value_type']),
+                        'itemids': [item['itemid']], 'time_from': int(time.time()) - 3600,
+                        'sortfield': 'clock', 'sortorder': 'ASC', 'limit': 180,
+                    }, base, token)
+                    result[history_key][key] = [{'t': int(p['clock']), 'v': float(p['value'])} for p in samples]
         problems = _rpc('problem.get', {
             'output': ['eventid', 'name', 'severity', 'clock'], 'recent': False,
             'sortfield': ['eventid'], 'sortorder': 'DESC', 'limit': 20,
