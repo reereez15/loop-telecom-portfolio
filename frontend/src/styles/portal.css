@@ -241,7 +241,8 @@ input::placeholder,textarea::placeholder { color:var(--ink-soft); opacity:1; }
 .attention-item--danger { background:var(--danger-bg); color:var(--danger-ink); }
 .attention-item--warn { background:var(--warn-bg); color:var(--warn-ink); }
 .zabbix-heading { margin:32px 0 16px; }
-.zabbix-heading h2 { margin:0; }
+.zabbix-heading h2 { margin:0; font-size:1.3rem; font-weight:700; }
+.zabbix-monitoring .zabbix-section-title { margin:28px 0 16px; padding:12px 16px; border:1px solid var(--info-line); border-radius:8px; background:var(--info-bg); color:var(--info-ink); font-size:1rem; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
 .tool-card { padding:24px; gap:10px; }
 .tool-card__url,.flow-card__path { overflow-wrap:anywhere; }
 @media(min-width:1600px) { .portal-hero { margin-inline:-80px; padding-inline:80px; }.campaign-control { left:80px; } }

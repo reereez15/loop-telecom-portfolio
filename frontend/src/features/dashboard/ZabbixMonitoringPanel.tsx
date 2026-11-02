@@ -4,16 +4,29 @@ import { useApi } from '../../utils/useApi'
 type Point = { t: number; v: number }
 type Monitoring = {
   configured: boolean; connected: boolean; updated_at: string | null; message: string | null
+  nodes?: { name: string; ip: string; status: 'ON' | 'OFF' | 'UNKNOWN'; checked_at: number | null; message: string | null }[]
   services: { name: string; status: 'UP' | 'DOWN' | 'UNKNOWN'; checked_at: number | null }[]
   metrics: Record<string, number | null>; history: Record<string, Point[]>
+  pc1_metrics?: Record<string, number | null>; pc1_history?: Record<string, Point[]>
   problems: { name: string; severity: number; clock: number }[]
 }
 
 const metrics: [string, string, string][] = [
   ['cpu', 'CPU 사용률', '%'], ['ram', 'RAM 사용률', '%'],
-  ['disk_c', 'C 드라이브', '%'], ['disk_d', 'D 드라이브', '%'],
-  ['rx', '이더넷 수신 (RX)', 'bps'], ['tx', '이더넷 송신 (TX)', 'bps'],
+  ['disk_c', 'C 드라이브', '%'],
 ]
+
+function serviceLabel(name: string) {
+  // Support responses from the previous backend during a rolling deployment.
+  const labels: Record<string, string> = {
+    'Flask API': 'PC2 · Flask API',
+    'Wazuh Dashboard': 'PC2 · Wazuh Dashboard',
+    'MySQL': 'PC2 · MySQL',
+    'n8n': 'PC2 · n8n',
+    'Graylog': 'PC1 · Graylog',
+  }
+  return labels[name] || name
+}
 
 function Sparkline({ points }: { points: Point[] }) {
   if (points.length < 2) return <span className="muted">추이 데이터 대기 중</span>
@@ -28,7 +41,6 @@ function Sparkline({ points }: { points: Point[] }) {
 
 function pretty(value: number | null | undefined, unit: string) {
   if (value == null) return '수집 대기'
-  if (unit === 'bps') return value >= 1e6 ? `${(value / 1e6).toFixed(2)} Mbps` : value >= 1e3 ? `${(value / 1e3).toFixed(1)} Kbps` : `${value.toFixed(0)} bps`
   return `${value.toFixed(1)}${unit}`
 }
 
@@ -48,21 +60,42 @@ export default function ZabbixMonitoringPanel() {
     {data && !data.connected && <p role="status" className="notice notice--warn">{data.message || 'Zabbix 연결 상태를 확인할 수 없습니다.'}</p>}
     {data?.connected && <>
       <p className="muted">{data.updated_at ? `마지막 조회: ${new Date(data.updated_at).toLocaleString('ko-KR')}` : '조회 시각 미제공'} · 30초마다 갱신 · 서비스별 측정 시각은 아래 표시</p>
+      <h3 className="zabbix-section-title">가상 서버 연결 상태 · Kubernetes VM</h3>
+      <p className="muted">ON은 네트워크 응답 확인, OFF는 Ping·SSH·등록 서비스 모두 응답 없음입니다. 전원 상태를 직접 측정하지 않으며, 방화벽·네트워크 장애도 OFF로 표시될 수 있습니다.</p>
+      <div className="grid grid--2">
+        {(data.nodes || []).map(node => <article className="tile" key={node.name}>
+          <span className="tile__label">{node.name} VM · {node.ip}</span>
+          <strong className="tile__value" style={{ color: node.status === 'ON' ? 'var(--ok)' : node.status === 'OFF' ? 'var(--danger)' : 'var(--ink-soft)' }}>
+            {node.status === 'UNKNOWN' ? '확인 불가' : node.status}
+          </strong>
+          <span className="tile__sub">{node.message || 'ICMP / SSH / 서비스 TCP 응답 기준'}</span>
+          <span className="tile__sub">마지막 측정 · {node.checked_at ? new Date(node.checked_at * 1000).toLocaleString('ko-KR') : '수집 대기'}</span>
+        </article>)}
+      </div>
+      <h3 className="zabbix-section-title">애플리케이션·DB 서비스 상태</h3>
       {data.services.some(s => s.status === 'DOWN') && <p className="notice notice--danger" role="status">TCP 연결 실패 {data.services.filter(s => s.status === 'DOWN').length}개 · 아래 서비스와 측정 시각을 확인하세요.</p>}
       <div className="grid grid--3">
         {data.services.map(service => <article key={service.name} className="tile">
-          <span className="tile__label">{service.name}</span>
+          <span className="tile__label">{serviceLabel(service.name)}</span>
           <strong className="tile__value" style={{ color: service.status === 'UP' ? 'var(--ok)' : service.status === 'DOWN' ? 'var(--danger)' : 'var(--ink-soft)' }}>{service.status}</strong>
           <span className="tile__sub">TCP 연결 감시 · {service.checked_at ? new Date(service.checked_at * 1000).toLocaleTimeString('ko-KR') : '수집 대기'}</span>
         </article>)}
       </div>
-      <div className="grid grid--3">
-        {metrics.map(([key, label, unit]) => <article className="panel" key={key} style={{ minWidth: 0 }}>
-          <span className="tile__label">PC2 Windows · {label}</span>
-          <strong className="tile__value">{pretty(data.metrics[key], unit)}</strong>
-          <Sparkline points={data.history[key] || []} />
-        </article>)}
-      </div>
+      {[
+        { name: 'PC1 Windows', values: data.pc1_metrics || {}, history: data.pc1_history || {} },
+        { name: 'PC2 Windows', values: data.metrics, history: data.history },
+      ].map(pc => <section key={pc.name} aria-label={`${pc.name} 리소스 사용률`}>
+        <h3 className="zabbix-section-title">{pc.name.replace(' Windows', '')} 리소스 사용률 · Windows</h3>
+        {pc.name === 'PC1 Windows' && metrics.every(([key]) => pc.values[key] == null) &&
+          <p className="muted">PC1 리소스 수집 대기 중입니다. Zabbix의 PC1-Windows 호스트와 Windows 에이전트 수집 상태를 확인하세요.</p>}
+        <div className="grid grid--3">
+          {metrics.map(([key, label, unit]) => <article className="panel" key={key} style={{ minWidth: 0 }}>
+            <span className="tile__label">{pc.name} · {label}</span>
+            <strong className="tile__value">{pretty(pc.values[key], unit)}</strong>
+            <Sparkline points={pc.history[key] || []} />
+          </article>)}
+        </div>
+      </section>)}
       <article className="panel">
         <h2>활성 Zabbix 장애 · {data.problems.length}건{data.problems.length === 20 ? ' 이상' : ''}</h2>
         {data.problems.length ? <ul className="list">{data.problems.map((p, i) => <li key={i}><span>{p.name}</span><span className="muted">심각도 {p.severity} · {new Date(p.clock * 1000).toLocaleString('ko-KR')}</span></li>)}</ul> : <p className="muted">현재 조회된 활성 장애 없음</p>}

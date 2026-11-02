@@ -16,14 +16,37 @@ bp = Blueprint('admin_zabbix', __name__, url_prefix='/api/admin')
 TARGETS = {
     'services': 'telecom-services',
     'windows': 'PC2-Windows',
+    'pc1_windows': 'PC1-Windows',
 }
 SERVICE_PORTS = {
-    '192.168.3.19:5000': 'Flask API',
-    '192.168.3.19:443': 'Wazuh Dashboard',
-    '192.168.3.19:3306': 'MySQL',
-    '192.168.3.19:5678': 'n8n',
-    '192.168.3.18:9000': 'Graylog',
+    '192.168.3.19:5000': 'PC2 · Flask API',
+    '192.168.3.19:443': 'PC2 · Wazuh Dashboard',
+    '192.168.3.19:3306': 'PC2 · MySQL',
+    '192.168.3.19:5678': 'PC2 · n8n',
+    '192.168.3.18:9000': 'PC1 · Graylog',
 }
+
+
+def _node_status(items, ip, now):
+    keys = (f'icmpping[{ip}]', f'net.tcp.service[tcp,{ip},22]',
+            *(f"net.tcp.service[tcp,{address.replace(':', ',')}]" for address in SERVICE_PORTS if address.startswith(ip + ':')))
+    checks = []
+    for key in keys:
+        item = next((x for x in items if x.get('key_') == key), None)
+        if not item or str(item.get('status', '0')) != '0' or str(item.get('state', '0')) != '0':
+            continue
+        try:
+            clock = int(item.get('lastclock', 0))
+            value = float(item['lastvalue'])
+        except (TypeError, ValueError, KeyError):
+            continue
+        if clock <= 0 or not 0 <= now - clock <= 180 or value not in (0, 1):
+            continue
+        checks.append((value, clock))
+    status = 'ON' if any(v == 1 for v, _ in checks) else 'OFF' if len(checks) == len(keys) else 'UNKNOWN'
+    return {'status': status, 'checked_at': max((t for _, t in checks), default=None),
+            'method': 'ICMP·SSH·등록 서비스 TCP 응답',
+            'message': None if status != 'UNKNOWN' else '감시 항목 미설정·수집 지연 또는 데이터 확인 불가'}
 
 
 def _rpc(method, params, base_url, token):
@@ -55,6 +78,8 @@ def _metric_item(items, patterns):
 
 def _numeric(item):
     try:
+        if item.get('lastclock') in ('0', 0) or str(item.get('state', '0')) != '0':
+            return None
         return round(float(item['lastvalue']), 3)
     except (TypeError, ValueError, KeyError):
         return None
@@ -66,7 +91,8 @@ def zabbix_dashboard():
     base = os.getenv('ZABBIX_API_URL', '').strip()
     token = os.getenv('ZABBIX_API_TOKEN', '').strip()
     result = {'configured': bool(base and token), 'connected': False, 'updated_at': None,
-              'services': [], 'metrics': {}, 'history': {}, 'problems': [], 'message': None}
+              'nodes': [], 'services': [], 'metrics': {}, 'history': {},
+              'pc1_metrics': {}, 'pc1_history': {}, 'problems': [], 'message': None}
     if not result['configured']:
         result['message'] = 'ZABBIX_API_URL 및 ZABBIX_API_TOKEN 서버 환경변수를 설정하세요.'
         return ok(result)
@@ -83,9 +109,14 @@ def zabbix_dashboard():
             result['message'] = 'Zabbix에서 대상 호스트를 찾지 못했습니다. 계정 읽기 권한과 호스트 이름을 확인하세요.'
             return ok(result)
         items = _rpc('item.get', {
-            'output': ['itemid', 'hostid', 'name', 'key_', 'lastvalue', 'lastclock', 'units', 'value_type'],
+            'output': ['itemid', 'hostid', 'name', 'key_', 'lastvalue', 'lastclock', 'units', 'value_type', 'status', 'state'],
             'hostids': list(ids.values()), 'filter': {'status': 0}, 'limit': 2000,
         }, base, token)
+        now = int(time.time())
+        for name, ip in [('PC1', os.getenv('ZABBIX_PC1_IP', '192.168.7.185')),
+                         ('PC2', os.getenv('ZABBIX_PC2_IP', '192.168.7.100'))]:
+            node_items = [x for x in items if x['hostid'] == ids.get(TARGETS['services'])]
+            result['nodes'].append({'name': name, 'ip': ip, **_node_status(node_items, ip, now)})
         service_items = [x for x in items if x['hostid'] == ids.get(TARGETS['services'])
                          and x.get('key_', '').startswith('net.tcp.service[')]
         for label_key, label in SERVICE_PORTS.items():
@@ -95,26 +126,25 @@ def zabbix_dashboard():
             value = _numeric(item) if item else None
             result['services'].append({'name': label, 'status': ('UP' if value == 1 else 'DOWN' if value == 0 else 'UNKNOWN'),
                                        'checked_at': int(item['lastclock']) if item and item.get('lastclock') else None})
-        windows_items = [x for x in items if x['hostid'] == ids.get(TARGETS['windows'])]
         selectors = {
             'cpu': ['CPU utilization'], 'ram': ['Memory utilization'],
             'disk_c': ['FS [(C:)]: Space: Used, in %'],
-            'disk_d': ['FS [새 볼륨 (D:)]: Space: Used, in %'],
-            'rx': ['Realtek PCIe GbE Family Controller(이더넷): Bits received'],
-            'tx': ['Realtek PCIe GbE Family Controller(이더넷): Bits sent'],
         }
         # Template names can vary; not finding an item returns null rather than invented values.
-        for key, patterns in selectors.items():
-            item = _metric_item(windows_items, patterns)
-            result['metrics'][key] = _numeric(item) if item else None
-            result['history'][key] = []
-            if item and item.get('value_type') in ('0', '3'):
-                samples = _rpc('history.get', {
-                    'output': 'extend', 'history': int(item['value_type']),
-                    'itemids': [item['itemid']], 'time_from': int(time.time()) - 3600,
-                    'sortfield': 'clock', 'sortorder': 'ASC', 'limit': 180,
-                }, base, token)
-                result['history'][key] = [{'t': int(p['clock']), 'v': float(p['value'])} for p in samples]
+        for host_key, metrics_key, history_key in [('pc1_windows', 'pc1_metrics', 'pc1_history'),
+                                                   ('windows', 'metrics', 'history')]:
+            windows_items = [x for x in items if x['hostid'] == ids.get(TARGETS[host_key])]
+            for key, patterns in selectors.items():
+                item = _metric_item(windows_items, patterns)
+                result[metrics_key][key] = _numeric(item) if item else None
+                result[history_key][key] = []
+                if item and item.get('value_type') in ('0', '3'):
+                    samples = _rpc('history.get', {
+                        'output': 'extend', 'history': int(item['value_type']),
+                        'itemids': [item['itemid']], 'time_from': int(time.time()) - 3600,
+                        'sortfield': 'clock', 'sortorder': 'ASC', 'limit': 180,
+                    }, base, token)
+                    result[history_key][key] = [{'t': int(p['clock']), 'v': float(p['value'])} for p in samples]
         problems = _rpc('problem.get', {
             'output': ['eventid', 'name', 'severity', 'clock'], 'recent': False,
             'sortfield': ['eventid'], 'sortorder': 'DESC', 'limit': 20,

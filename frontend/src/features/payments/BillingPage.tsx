@@ -21,13 +21,40 @@ export default function BillingPage() {
   const [result, setResult] = useState<Result>(null)
   const [busy, setBusy] = useState(false)
   const keyRef = useRef<string>('')
+  const kakaoKeys = useRef<Record<number, string>>({})
 
   if (invoices.loading || payments.loading || cards.loading) return <Loading />
   if (invoices.error || !invoices.data) return <ErrorState error={invoices.error} onRetry={invoices.reload} />
 
   const open = (inv: Invoice) => { setPaying(inv); setResult(null); keyRef.current = newIdempotencyKey() }
 
-  const kakaoPay = () => window.alert('결제 시스템은 준비중 입니다.')
+  const kakaoPay = async (invoice: Invoice) => {
+    if (busy) return
+    setBusy(true)
+    setResult(null)
+    const key = kakaoKeys.current[invoice.id] ??= newIdempotencyKey()
+    try {
+      const data = await api<{ payment: Payment; redirect_url: string | null }>('/payments/kakaopay/ready', {
+        method: 'POST', headers: { 'Idempotency-Key': key },
+        body: { invoice_id: invoice.id },
+      })
+      if (data.payment.status === 'SUCCEEDED') {
+        setResult({ type: 'ok', text: '이미 결제가 완료된 청구서입니다.' })
+        invoices.reload(); payments.reload()
+        delete kakaoKeys.current[invoice.id]
+        return
+      }
+      if (!data.redirect_url) throw new Error('카카오페이 결제 화면 주소를 받지 못했습니다.')
+      const redirect = new URL(data.redirect_url)
+      if (redirect.protocol !== 'https:') throw new Error('카카오페이 결제 화면 주소가 올바르지 않습니다.')
+      window.location.assign(redirect.href)
+    } catch (err) {
+      const ex = err as ApiError
+      setResult({ type: 'error', text: ex.message })
+      // 네트워크·서버 오류로 결과가 불명확하면 같은 키로 재시도한다.
+      if (ex.status > 0 && ex.status < 500) delete kakaoKeys.current[invoice.id]
+    } finally { setBusy(false) }
+  }
 
   const pay = async (e: FormEvent) => {
     e.preventDefault()
@@ -88,8 +115,8 @@ export default function BillingPage() {
             </form>
           ) : (
             <div className="row">
-              <button className="btn" onClick={() => open(inv)}>테스트 카드로 납부</button>
-              <button type="button" className="btn btn--kakao" disabled={busy} onClick={kakaoPay}>카카오페이</button>
+              <button className="btn" disabled={busy} onClick={() => open(inv)}>테스트 카드로 납부</button>
+              <button type="button" className="btn btn--kakao" disabled={busy} onClick={() => kakaoPay(inv)}>{busy ? '결제 연결 중' : '카카오페이'}</button>
             </div>
           )}
         </article>
