@@ -96,10 +96,10 @@ def test_csrf_required_for_state_change(client):
     assert client.get("/api/auth/me").status_code == 401  # DB 세션 폐기됨
 
 
-def test_idle_timeout_1h(client, app):
+def test_idle_timeout_30min(client, app):
     login(client, "alice@test.local")
     s = AuthSession.query.one()
-    s.last_seen_at -= timedelta(minutes=61)
+    s.last_seen_at -= timedelta(minutes=31)
     db.session.commit()
     assert client.get("/api/auth/me").status_code == 401
 

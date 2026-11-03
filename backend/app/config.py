@@ -50,7 +50,7 @@ class Config:
 
     # 인증 (통합 기준 7절)
     SESSION_COOKIE_NAME = "__Host-telecom_session"
-    SESSION_IDLE_MINUTES = 60
+    SESSION_IDLE_MINUTES = 30
     SESSION_ABSOLUTE_HOURS = 8
     LOGIN_WINDOW_MINUTES = 15
     LOGIN_MAX_PER_ACCOUNT = 5

@@ -1,7 +1,7 @@
 """MySQL 공유 서버 세션 (통합 기준 7절, docs/contracts/auth-api.md).
 
 - 쿠키: __Host-telecom_session, Secure / HttpOnly / SameSite=Lax / Path=/ / Domain 없음
-- 유휴 1시간(60분), 절대 8시간. 로그아웃·비밀번호 변경·탈퇴 시 DB에서 폐기
+- 유휴 30분, 절대 8시간. 로그아웃·비밀번호 변경·탈퇴 시 DB에서 폐기
 - API Pod 메모리에는 아무것도 저장하지 않는다 → 어느 Pod로 요청이 가도 같은 결과
 """
 import hashlib

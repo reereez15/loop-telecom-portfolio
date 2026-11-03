@@ -27,7 +27,7 @@ const SECURITY_MENU: [string, string][] = [
 ]
 
 export default function AdminLayout() {
-  const { user, session, logout } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const tools = useApi<{ links: MonitoringLink[] }>('/admin/monitoring-links')
@@ -66,12 +66,12 @@ export default function AdminLayout() {
         </Dropdown>
         <div className="topnav__actions">
           <Link to="/" className="btn btn--ghost btn--sm admin-customer-link">사용자 페이지</Link>
+          <SessionClock />
           <ThemeToggle />
           <Dropdown label={`${user?.name ?? ''}님`} className="topnav__user">
             {(close) => (
               <>
                 <li className="user-menu__meta">{user ? ROLE_LABEL[user.role] : ''} · {user?.email}</li>
-                {session && <SessionClock since={session.created_at} idleMinutes={session.idle_minutes} />}
                 <ThemeMenuItem />
                 <li className="user-menu__sep" role="separator" />
                 <li><Link to="/admin/settings" onClick={close}>프로필 설정</Link></li>
