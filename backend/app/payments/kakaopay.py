@@ -44,24 +44,30 @@ def _post(path: str, payload: dict) -> dict:
         raise KakaoPayError(f"카카오페이에 연결할 수 없습니다: {err}", None)
 
 
-def _urls(payment_id: int, section: str) -> dict:
+def _urls(section: str, query: str) -> dict:
     base = current_app.config["PUBLIC_BASE_URL"].rstrip("/")
-    return {"approval_url": f"{base}/{section}/kakaopay/approve?payment_id={payment_id}",
-            "cancel_url": f"{base}/{section}/kakaopay/cancel?payment_id={payment_id}",
-            "fail_url": f"{base}/{section}/kakaopay/fail?payment_id={payment_id}"}
+    return {"approval_url": f"{base}/{section}/kakaopay/approve?{query}",
+            "cancel_url": f"{base}/{section}/kakaopay/cancel?{query}",
+            "fail_url": f"{base}/{section}/kakaopay/fail?{query}"}
 
 
-def ready(payment_id: int, user_id: int, item_name: str, amount: int, section: str = "billing") -> dict:
-    """section: 결제 완료 후 돌아올 프런트엔드 경로(billing/membership 등). 기존 호출은 그대로 billing."""
+def ready(order_id, user_id: int, item_name: str, amount: int,
+          section: str = "billing", return_query: str | None = None) -> dict:
+    """order_id: 가맹점 주문번호(요금 납부는 payment.id, 멤버십 등급 구매는 "upg-{user}-{rank}").
+
+    section/return_query: 결제 후 돌아올 프런트엔드 경로와 질의 문자열.
+    카카오페이는 복귀할 때 pg_token 만 덧붙이므로, 승인에 필요한 나머지 정보는 여기에 담거나 서버가 따로 들고 있어야 한다.
+    """
     return _post("/online/v1/payment/ready", {
-        "cid": current_app.config["KAKAOPAY_CID"], "partner_order_id": str(payment_id),
+        "cid": current_app.config["KAKAOPAY_CID"], "partner_order_id": str(order_id),
         "partner_user_id": str(user_id), "item_name": item_name[:100], "quantity": 1,
-        "total_amount": amount, "tax_free_amount": 0, **_urls(payment_id, section)})
+        "total_amount": amount, "tax_free_amount": 0,
+        **_urls(section, return_query or f"payment_id={order_id}")})
 
 
-def approve(tid: str, payment_id: int, user_id: int, pg_token: str) -> dict:
+def approve(tid: str, order_id, user_id: int, pg_token: str) -> dict:
     return _post("/online/v1/payment/approve", {
-        "cid": current_app.config["KAKAOPAY_CID"], "tid": tid, "partner_order_id": str(payment_id),
+        "cid": current_app.config["KAKAOPAY_CID"], "tid": tid, "partner_order_id": str(order_id),
         "partner_user_id": str(user_id), "pg_token": pg_token})
 
 

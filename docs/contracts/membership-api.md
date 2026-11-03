@@ -22,25 +22,40 @@
 - 변경 전후 rank·사유·행위자·대상을 `security_audit_logs`의 `membership.tier.changed`로 변경과 같은 트랜잭션에 저장한다.
 - 동시 변경 충돌은 409로 반환한다. 실제 사용자 role·세션 권한·허용목록은 변경하지 않는다.
 
-## 업그레이드 카드 — 등급 직접 구매 (2026-11-02)
+## 업그레이드 카드 — 등급 직접 구매 (2026-11-03)
 
-등급(Plus·VIP)을 1회성 결제로 바로 구매할 수 있다. 가격은 `membership/tiers.py`의 코드 상수 `UPGRADE_PRICES`
-(Plus 14,900원·VIP 34,900원)이며 `tier_dict()`의 `price` 필드로 내려간다. 요금제 월 요금 기준 자동 가입 조건
-(`MembershipTier.min_monthly_fee`, 35,000·60,000원)과는 별개 값이다 — 처음엔 하나로 합쳐 썼다가, 자동 가입 조건보다
-구매 가격을 낮게 책정하면서(요금제만 쓰면 상위 등급이 공짜로 열려버리는 문제가 생겨) 분리했다. 공용 DB 스키마를 바꾸지
-않으려고 가격 컬럼 대신 코드 상수로 두었고, 가격 변경은 그 한 줄만 고치면 된다.
-모의 카드·카카오페이 둘 다 지원하며, payments 모듈과 같은 방어를 쓴다:
-서버가 가격을 다시 계산(요청 금액은 참고만), `(user_id, idempotency_key)` 멱등, 카카오페이 승인 금액 불일치 시 즉시 취소.
+등급(Plus·VIP)을 1회성 결제로 바로 구매할 수 있다. 모의 카드와 카카오페이 테스트 결제 둘 다 지원하며,
+**결제가 승인되어야만** 등급이 올라간다.
 
-새 테이블 `membership_upgrades` (Migration `a1f5c9e2b4d7`, 수동 적용은 `database/schema/05_membership_upgrades.sql`).
-동시성: 계정 행을 잠그고 "구매 시작 시점 등급과 지금 등급이 같을 때만" 조건부 UPDATE로 반영한다 — 그사이 관리자가 등급을
-바꿨거나 다른 채널로 이미 업그레이드했으면 거절하고, 카카오페이 결제는 취소한다. 등급을 환불로 되돌리는 정책이 아직
-없어 관리자 환불 API는 없다(성공한 구매를 취소하려면 당분간 `PATCH /api/admin/membership/customers/{id}/tier`로 수동 변경).
+가격은 `membership/tiers.py`의 코드 상수 `UPGRADE_PRICES`(Plus 14,900원·VIP 34,900원)이며 `tier_dict()`의
+`price` 필드로 내려간다. 요금제 월 요금 기준 자동 가입 조건(`MembershipTier.min_monthly_fee`, 35,000·60,000원)과는
+별개 값이다 — 자동 가입 조건보다 구매 가격이 낮아, 하나로 합쳐 쓰면 요금제만으로 상위 등급이 열려버린다.
 
-- 가격·구매 가능 여부는 별도 엔드포인트 없이 기존 `GET /api/membership/me`·`/api/membership/tiers` 응답(tier_dict 의 `price`)로 내려간다.
-- `POST /api/membership/upgrade`: 모의 카드. 본문 `{ "tier_rank": 1|2, "card_number": "..." }` + `Idempotency-Key`
-- `POST /api/membership/upgrade/kakaopay/ready|approve|abort`: 카카오페이(payments/kakaopay.py 재사용, `section="membership"` →
-  프런트 복귀 경로가 `/membership/kakaopay/...`)
-- `GET /api/membership/upgrade/me`: 내 구매 내역 (최근 20건)
-- `GET /api/admin/membership/upgrades`: 실제 ADMIN 세션만, 전체 구매 내역 조회(최근 100건)
+### 저장 테이블을 두지 않는다
+
+구매 이력 테이블을 새로 만들지 않는다(공용 DB 스키마를 바꾸지 않기로 함). 그래서:
+
+- **모의 카드**: 한 번의 요청 안에서 승인→등급 반영까지 끝나므로 보관할 상태가 없다.
+- **카카오페이**: ready 응답의 `tid`를 HttpOnly 쿠키(`telecom_upgrade_pending`, 30분)에 담아 approve 때 되돌려 받는다.
+  카카오페이는 복귀 시 `pg_token`만 붙여주고, `approval_url`은 ready 호출 시점에 미리 넘기는 값이라 tid를 URL에 실을 수 없다.
+- 한계: 구매 이력·관리자 조회 화면이 없고(결제 기록은 카카오페이 쪽에만 남는다), 쿠키가 지워지면 승인을 이어갈 수 없다
+  (승인 전이라 돈은 빠지지 않는다).
+
+### 조작 방지
+
+- 금액은 항상 서버가 다시 계산한다. 요청 본문의 금액은 받지 않는다.
+- 주문번호를 `upg-{user_id}-{rank}`로 정해두고, approve 때 **세션의 user_id와 쿠키의 rank로 서버가 다시 만들어** 보낸다.
+  쿠키를 고쳐 더 비싼 등급을 받으려 하면 카카오페이가 보관한 주문번호와 달라 승인이 거절된다.
+- 승인 응답의 `amount.total`이 서버 계산 가격과 다르면 즉시 카카오페이 결제를 취소한다.
+- 등급 반영은 "구매 시작 시점 등급과 지금 등급이 같을 때만" 조건부 UPDATE 한다. 그사이 바뀌었으면 반영하지 않고
+  카카오페이 결제도 취소한다.
+
+### 엔드포인트
+
+- `POST /api/membership/upgrade` — 모의 카드. 본문 `{ "tier_rank": 1|2, "card_number": "..." }`.
+  승인되면 201 + `{approved: true, upgrade: {...}}`, 카드가 거절되면 200 + `{approved: false, upgrade: null}`.
+- `POST /api/membership/upgrade/kakaopay/ready` — 본문 `{ "tier_rank": 1|2 }` → `{redirect_url, amount}` + 대기 쿠키
+- `POST /api/membership/upgrade/kakaopay/approve` — 본문 `{ "pg_token": "..." }` (tid·rank는 쿠키에서 읽는다)
+- `POST /api/membership/upgrade/kakaopay/abort` — 결제창에서 취소/실패하고 돌아온 경우. 대기 쿠키만 지운다.
 - 현재 등급 이하로는 구매할 수 없다(`ALREADY_AT_OR_ABOVE`). 미가입 고객은 `NOT_MEMBER`(먼저 `/api/membership/join`).
+- ready 없이 approve를 부르면 `NO_PENDING_PAYMENT`.

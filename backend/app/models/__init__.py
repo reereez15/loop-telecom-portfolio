@@ -2,7 +2,7 @@
 from .auth import AuthLoginFailure, AuthSession
 from .billing import Invoice, Payment, PaymentEvent
 from .incident import IncidentHistory, SecurityIncident
-from .membership import Benefit, BenefitRedemption, MembershipAccount, MembershipTier, MembershipUpgrade, PointTransaction
+from .membership import Benefit, BenefitRedemption, MembershipAccount, MembershipTier, PointTransaction
 from .protection import IpBlock, IpWhitelist, SecurityAuditLog
 from .shop import ShopItem, ShopOrder
 from .notice import Notice
@@ -12,7 +12,7 @@ from .user import User
 
 __all__ = [
     "User", "AuthSession", "AuthLoginFailure", "Plan", "Subscription", "UsageRecord", "SupportTicket", "SupportReply",
-    "MembershipTier", "MembershipAccount", "PointTransaction", "MembershipUpgrade", "Benefit", "BenefitRedemption",
+    "MembershipTier", "MembershipAccount", "PointTransaction", "Benefit", "BenefitRedemption",
     "Invoice", "Payment", "PaymentEvent", "SecurityIncident", "IncidentHistory",
     "IpBlock", "IpWhitelist", "SecurityAuditLog", "ShopItem", "ShopOrder", "Notice",
 ]

@@ -107,20 +107,13 @@ export type Membership =
       joined_at: string
     }
 
-export type MembershipUpgradeStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED'
-
-export interface MembershipUpgrade {
-  id: number
-  from_tier_id: number
-  to_tier_id: number
+// 등급 직접 구매 결과. 구매 이력 테이블을 두지 않아 서버는 성공한 결과만 돌려준다.
+export interface MembershipUpgradeResult {
   to_tier_rank: number
   to_tier_name: string
   amount: number
-  status: MembershipUpgradeStatus
-  method: string
-  transaction_ref: string
-  created_at: string
-  customer_name?: string
+  method: 'MOCK_CARD' | 'KAKAOPAY'
+  transaction_ref?: string
 }
 
 export interface Benefit {

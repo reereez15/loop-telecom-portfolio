@@ -4,7 +4,7 @@ import ErrorState from '../../components/common/ErrorState'
 import Loading from '../../components/common/Loading'
 import Logo from '../../components/common/Logo'
 import { ApiError, api } from '../../services/apiClient'
-import type { Benefit, Membership, MembershipUpgrade, PointTransaction, Redemption } from '../../services/types'
+import type { Benefit, Membership, MembershipUpgradeResult, PointTransaction, Redemption } from '../../services/types'
 import { dateTime, won } from '../../utils/format'
 import { newIdempotencyKey } from '../../utils/idempotency'
 import { useApi } from '../../utils/useApi'
@@ -29,7 +29,6 @@ export default function MembershipPage() {
   const [upgradingRank, setUpgradingRank] = useState<number | null>(null)
   const [card, setCard] = useState('4242424242424242')
   const [upgradeBusy, setUpgradeBusy] = useState(false)
-  const upgradeKey = useRef<string>('')
 
   if (me.loading) return <Loading />
   if (me.error || !me.data) return <ErrorState error={me.error} onRetry={me.reload} />
@@ -72,30 +71,24 @@ export default function MembershipPage() {
 
   const openUpgrade = (rank: number) => {
     if (!m.joined) { setMessage({ type: 'error', text: '먼저 L∞P+ 멤버십에 가입하세요.' }); return }
-    setUpgradingRank(rank); setMessage(null); upgradeKey.current = newIdempotencyKey()
+    setUpgradingRank(rank); setMessage(null)
   }
 
   const purchaseUpgrade = async (rank: number) => {
     setUpgradeBusy(true); setMessage(null)
     try {
-      const d = await api<{ upgrade: MembershipUpgrade }>('/membership/upgrade', {
-        method: 'POST', headers: { 'Idempotency-Key': upgradeKey.current },
-        body: { tier_rank: rank, card_number: card },
+      const d = await api<{ approved: boolean; upgrade: MembershipUpgradeResult | null }>('/membership/upgrade', {
+        method: 'POST', body: { tier_rank: rank, card_number: card },
       })
-      const u = d.upgrade
-      if (u.status === 'SUCCEEDED') {
-        setMessage({ type: 'ok', text: `${u.to_tier_name} 등급으로 업그레이드되었습니다. (거래번호 ${u.transaction_ref})` })
+      if (d.approved && d.upgrade) {
+        setMessage({ type: 'ok', text: `${d.upgrade.to_tier_name} 등급으로 업그레이드되었습니다. (거래번호 ${d.upgrade.transaction_ref})` })
         setUpgradingRank(null)
         reloadAll()
       } else {
         setMessage({ type: 'error', text: '결제가 승인되지 않았습니다. 다른 테스트 카드로 다시 시도해 보세요.' })
       }
-      upgradeKey.current = newIdempotencyKey() // 결과가 확정됐으니 다음 시도는 새 결제
     } catch (err) {
-      const ex = err as ApiError
-      setMessage({ type: 'error', text: ex.message })
-      // 결과를 모르는 경우(네트워크·5xx)는 같은 키로 다시 눌러야 중복 결제가 생기지 않는다
-      if (ex.status !== 0 && ex.status < 500) upgradeKey.current = newIdempotencyKey()
+      setMessage({ type: 'error', text: (err as ApiError).message })
     } finally { setUpgradeBusy(false) }
   }
 
@@ -103,7 +96,7 @@ export default function MembershipPage() {
     setUpgradeBusy(true); setMessage(null)
     try {
       const d = await api<{ redirect_url: string }>('/membership/upgrade/kakaopay/ready', {
-        method: 'POST', headers: { 'Idempotency-Key': upgradeKey.current }, body: { tier_rank: rank },
+        method: 'POST', body: { tier_rank: rank },
       })
       window.location.assign(d.redirect_url)
     } catch (err) {

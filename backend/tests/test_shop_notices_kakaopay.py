@@ -112,15 +112,24 @@ def kakao(monkeypatch):
         calls.append((path, payload))
         if path.endswith("/ready"):
             tid = f"T{len(calls):010d}"
+            payload["tid_issued"] = tid          # 승인 때 주문번호를 대조하기 위해 기억해 둔다
             return {"tid": tid, "next_redirect_pc_url": f"https://online-pay.kakao.com/mockup/{tid}"}
         if path.endswith("/approve"):
             if fake.approve_amount:
                 amount = fake.approve_amount
             else:
-                # 요금 납부(Payment)·멤버십 등급 구매(MembershipUpgrade) 둘 다 이 가짜 카카오페이를 쓴다
-                from app.models import MembershipUpgrade
+                # 요금 납부(Payment)·멤버십 등급 구매 둘 다 이 가짜 카카오페이를 쓴다.
+                # 등급 구매는 저장 테이블이 없으므로 ready 때 보낸 금액을 그대로 승인 금액으로 돌려준다.
                 pay = Payment.query.filter_by(pg_tid=payload["tid"]).first()
-                amount = pay.amount if pay else MembershipUpgrade.query.filter_by(pg_tid=payload["tid"]).one().amount
+                if pay is not None:
+                    amount = pay.amount
+                else:
+                    # 실제 카카오페이처럼 ready 때의 주문번호와 다르면 거절한다 (주문번호 위조 방어 검증용)
+                    order = next((p for path_, p in calls
+                                  if path_.endswith("/ready") and p.get("tid_issued") == payload["tid"]), None)
+                    if order is None or order["partner_order_id"] != payload["partner_order_id"]:
+                        raise kakaopay.KakaoPayError("주문 정보가 일치하지 않습니다.", 400, {})
+                    amount = order["total_amount"]
             return {"aid": "A1", "tid": payload["tid"], "amount": {"total": amount}}
         if path.endswith("/cancel"):
             return {"status": "CANCEL_PAYMENT"}
