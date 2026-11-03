@@ -17,6 +17,13 @@ export interface Profile extends User {
   password_changed_at: string | null
 }
 
+// 로그인 경과 시간("접속 시간") 표시용. 유휴 idle_minutes 분 동안 요청이 없으면 자동 로그아웃된다.
+export interface SessionInfo {
+  created_at: string
+  last_seen_at: string
+  idle_minutes: number
+}
+
 export interface Plan {
   id: number
   code: string

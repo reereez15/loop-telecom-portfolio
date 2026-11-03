@@ -4,7 +4,7 @@ POST /api/auth/register, /login, /logout · GET /api/auth/me
 + 프로필: PATCH /api/auth/me, POST /api/auth/password, POST /api/auth/deactivate
 CSRF 토큰은 로그인 응답과 GET /api/auth/me 의 data.csrf_token 으로 받고, 상태 변경 요청에 X-CSRF-Token 헤더로 보낸다.
 """
-from flask import Blueprint, g
+from flask import Blueprint, current_app, g
 
 from ..core.permissions import current_user, json_and_origin_required, login_required
 from ..core.responses import ok
@@ -15,6 +15,13 @@ from ..models.base import utcnow
 from . import service
 
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+
+
+def _session_dict(session) -> dict:
+    """로그인 경과 시간 표시용. 화면은 last_seen_at+idle 을 다음 자동 로그아웃 예정 시각으로 보여준다."""
+    return {"created_at": session.created_at.isoformat() + "Z",
+            "last_seen_at": session.last_seen_at.isoformat() + "Z",
+            "idle_minutes": current_app.config["SESSION_IDLE_MINUTES"]}
 
 
 @bp.post("/register")
@@ -31,7 +38,7 @@ def login():
     user = service.authenticate(data.get("email"), data.get("password"))
     raw, session = create_session(user)
     db.session.commit()
-    resp, status = ok({"user": user.to_profile(), "csrf_token": session.csrf_token})
+    resp, status = ok({"user": user.to_profile(), "csrf_token": session.csrf_token, "session": _session_dict(session)})
     set_session_cookie(resp, raw)  # 토큰은 쿠키로만 전달, 본문에는 넣지 않음
     return resp, status
 
@@ -49,7 +56,8 @@ def logout():
 @bp.get("/me")
 @login_required
 def me():
-    return ok({"user": current_user().to_profile(), "csrf_token": g.auth_session.csrf_token})
+    return ok({"user": current_user().to_profile(), "csrf_token": g.auth_session.csrf_token,
+               "session": _session_dict(g.auth_session)})
 
 
 @bp.patch("/me")

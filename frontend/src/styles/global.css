@@ -389,6 +389,12 @@ a.tool-card:hover { border-color: var(--signal); }
 .user-menu a[aria-current='page'] { color: var(--signal); font-weight: 600; }
 .user-menu a:focus-visible, .user-menu button:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
 .user-menu__meta { display: block; padding: 0.55rem 1rem 0.45rem; font-size: 0.78rem; color: var(--ink-soft); }
+
+/* 상단 바의 접속 시간 표시 */
+.session-clock { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem;
+  color: var(--ink-soft); white-space: nowrap; cursor: default; }
+.session-clock__time { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+@media (max-width: 720px) { .session-clock__label { display: none; } }
 .user-menu__sep { height: 1px; background: var(--line); margin: 0.3rem 0; }
 /* 관리자 상단(어두운 배경): 버튼 글자만 밝게, 펼친 메뉴는 흰 배경 + 진한 글자 */
 .shell--admin .dropdown__btn { color: var(--bar-ink); border-color: var(--bar-line); }

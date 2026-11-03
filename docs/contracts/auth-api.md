@@ -4,6 +4,9 @@
 
 MySQL auth_sessions 공유 세션을 사용합니다. 무작위 opaque token 32바이트 이상을 발급하고 DB에는 SHA-256 해시를 저장합니다. 쿠키는 __Host-telecom_session, Secure/HttpOnly/SameSite=Lax, Path=/, Domain 미설정. 유휴 30분·절대 8시간, 로그아웃/비밀번호·역할 변경 시 폐기합니다.
 
+`/login`·`/me` 응답에는 `data.session`(`created_at`, `last_seen_at`, `idle_minutes`)도 내려간다. 상단 바의 "접속 시간" 표시는 `created_at` 기준 **로그인 경과 시간**이며, 클라이언트가 직접 계산한다.
+유휴 만료는 마지막 요청(`last_seen_at`) 기준이므로, 계속 사용 중이면 경과 시간이 유휴 한도를 넘어도 로그아웃되지 않는다.
+
 상태 변경은 CSRF와 X-CSRF-Token, 로그인/가입은 JSON·Origin을 검증합니다. 비밀번호는 Argon2id 64MiB/3회/parallelism1/salt16/출력32바이트. 공유 DB 제한은 계정별 15분 5회, IP별 15분 20회, 초과 429+Retry-After입니다.
 
 CUSTOMER는 본인 데이터, SUPPORT_ADMIN은 문의/모의 환불/멤버십 정책, SECURITY_ADMIN은 인시던트를 관리합니다. 공개 가입에서 관리자 역할을 선택하지 않습니다. 두 API 실행본 교차 인증과 고객 간 접근 거부를 검증합니다.

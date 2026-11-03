@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../app/providers/AuthProvider'
 import Dropdown from '../common/Dropdown'
 import Logo from '../common/Logo'
+import SessionClock from '../common/SessionClock'
 import { ThemeMenuItem, ThemeToggle } from '../common/ThemeControls'
 
 const GROUPS = [
@@ -20,7 +21,7 @@ export default function CustomerLayout() {
     <header className="customer-header">
       <div className="customer-header__utility">
         <Link to="/" className="brand" aria-label="루프 홈으로"><Logo size="lg" /></Link>
-        <div className="utility-links"><Link to="/membership">L∞P+</Link><Link to="/support">고객지원</Link>{isAdmin && <Link to="/admin">운영 콘솔</Link>}</div>
+        <div className="utility-links"><SessionClock /><Link to="/membership">L∞P+</Link><Link to="/support">고객지원</Link>{isAdmin && <Link to="/admin">운영 콘솔</Link>}</div>
       </div>
       <div className="customer-header__main">
         <nav className="customer-navigation" aria-label="주 메뉴">
@@ -35,7 +36,8 @@ export default function CustomerLayout() {
           <ThemeToggle />
           <Dropdown label={`${user?.name ?? ''}님`} className="topnav__user">
             {close => <>
-              <li className="user-menu__meta">{user?.email}</li><ThemeMenuItem />
+              <li className="user-menu__meta">{user?.email}</li>
+              <ThemeMenuItem />
               <li className="user-menu__sep" role="separator" />
               <li><Link to="/settings" onClick={close}>프로필·보안 설정</Link></li>
               <li><Link to="/support" onClick={close}>1:1 문의</Link></li>
