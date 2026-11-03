@@ -74,3 +74,22 @@ def test_dashboard_contract_queries_only_remaining_resource_histories(monkeypatc
     assert result['metrics']['cpu'] == 5
     assert result['nodes'][0]['status'] == 'ON'
     assert result['nodes'][1]['status'] == 'UNKNOWN'
+
+@pytest.mark.parametrize('clock,expected', [(1000,27.5),(0,None),(500,None)])
+def test_vm_cpu_fresh_idle_complement(monkeypatch,clock,expected):
+    from flask import Flask
+    from app.dashboard import zabbix_routes as route
+    monkeypatch.setenv('ZABBIX_API_URL','http://zabbix.invalid/api_jsonrpc.php')
+    monkeypatch.setenv('ZABBIX_API_TOKEN','test-only')
+    monkeypatch.setattr(route.time,'time',lambda:1010)
+    def rpc(method,params,*_):
+        if method=='host.get':return [{'host':'pc1-k3s','hostid':'10'}]
+        if method=='item.get':return [{'hostid':'10','itemid':'cpu','key_':'system.cpu.util[,idle]','name':'CPU idle time','lastvalue':'72.5','lastclock':str(clock),'value_type':'0'}]
+        if method=='history.get':return [{'clock':'1000','value':'80'}]
+        if method=='problem.get':return []
+        raise AssertionError(method)
+    monkeypatch.setattr(route,'_rpc',rpc)
+    with Flask(__name__).test_request_context():data=route.zabbix_dashboard.__wrapped__()[0].get_json()['data']
+    assert data['vm_cpu'][0]['value']==expected
+    assert data['vm_cpu'][0]['history']==([{'t':1000,'v':20.0}] if expected is not None else [])
+    assert data['vm_cpu'][1]['value'] is None

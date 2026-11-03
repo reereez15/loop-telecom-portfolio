@@ -192,3 +192,7 @@ def admin_update_benefit(benefit_id):
     db.session.commit()
     app_log("membership.benefit.updated", admin_id=current_user().id, benefit_id=benefit.id)
     return ok({"benefit": benefit.to_dict()})
+
+
+# Existing blueprint; upgrade ledger uses existing audit rows, no schema changes.
+from . import upgrades  # noqa: E402,F401
