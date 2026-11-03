@@ -51,14 +51,14 @@ def _urls(payment_id: int) -> dict:
             "fail_url": f"{base}/billing/kakaopay/fail?payment_id={payment_id}"}
 
 
-def ready(payment_id: int, user_id: int, item_name: str, amount: int) -> dict:
+def ready(payment_id: int | str, user_id: int, item_name: str, amount: int, return_urls=None) -> dict:
     return _post("/online/v1/payment/ready", {
         "cid": current_app.config["KAKAOPAY_CID"], "partner_order_id": str(payment_id),
         "partner_user_id": str(user_id), "item_name": item_name[:100], "quantity": 1,
-        "total_amount": amount, "tax_free_amount": 0, **_urls(payment_id)})
+        "total_amount": amount, "tax_free_amount": 0, **(return_urls or _urls(payment_id))})
 
 
-def approve(tid: str, payment_id: int, user_id: int, pg_token: str) -> dict:
+def approve(tid: str, payment_id: int | str, user_id: int, pg_token: str) -> dict:
     return _post("/online/v1/payment/approve", {
         "cid": current_app.config["KAKAOPAY_CID"], "tid": tid, "partner_order_id": str(payment_id),
         "partner_user_id": str(user_id), "pg_token": pg_token})

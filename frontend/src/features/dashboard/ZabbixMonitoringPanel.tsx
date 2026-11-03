@@ -5,6 +5,7 @@ type Point = { t: number; v: number }
 type Monitoring = {
   configured: boolean; connected: boolean; updated_at: string | null; message: string | null
   nodes?: { name: string; ip: string; status: 'ON' | 'OFF' | 'UNKNOWN'; checked_at: number | null; message: string | null }[]
+  vm_cpu?: { name: string; ip: string; host: string; value: number | null; checked_at: number | null; history: Point[] }[]
   services: { name: string; status: 'UP' | 'DOWN' | 'UNKNOWN'; checked_at: number | null }[]
   metrics: Record<string, number | null>; history: Record<string, Point[]>
   pc1_metrics?: Record<string, number | null>; pc1_history?: Record<string, Point[]>
@@ -71,6 +72,16 @@ export default function ZabbixMonitoringPanel() {
           <span className="tile__sub">{node.message || 'ICMP / SSH / 서비스 TCP 응답 기준'}</span>
           <span className="tile__sub">마지막 측정 · {node.checked_at ? new Date(node.checked_at * 1000).toLocaleString('ko-KR') : '수집 대기'}</span>
         </article>)}
+      </div>
+      <h3 className="zabbix-section-title">가상 서버 CPU 사용률 · Kubernetes VM</h3>
+      <div className="grid grid--2">
+        {(data.vm_cpu || []).map(vm => <article className="panel" key={vm.name}>
+          <span className="tile__label">{vm.name} · {vm.ip}</span>
+          <strong className="tile__value">{pretty(vm.value, '%')}</strong>
+          {vm.value == null ? <p className="muted">Zabbix의 {vm.host} 호스트와 Linux 에이전트 CPU 수집 상태를 확인하세요.</p> : <Sparkline points={vm.history} />}
+          <span className="tile__sub">마지막 측정 · {vm.checked_at ? new Date(vm.checked_at * 1000).toLocaleString('ko-KR') : '수집 대기'}</span>
+        </article>)}
+        {!data.vm_cpu?.length && <p className="muted">VM CPU 데이터를 제공하는 백엔드를 배포한 뒤 확인하세요.</p>}
       </div>
       <h3 className="zabbix-section-title">애플리케이션·DB 서비스 상태</h3>
       {data.services.some(s => s.status === 'DOWN') && <p className="notice notice--danger" role="status">TCP 연결 실패 {data.services.filter(s => s.status === 'DOWN').length}개 · 아래 서비스와 측정 시각을 확인하세요.</p>}

@@ -17,6 +17,8 @@ TARGETS = {
     'services': 'telecom-services',
     'windows': 'PC2-Windows',
     'pc1_windows': 'PC1-Windows',
+    'pc1_vm': os.getenv('ZABBIX_PC1_VM_HOST', 'pc1-k3s'),
+    'pc2_vm': os.getenv('ZABBIX_PC2_VM_HOST', 'pc2-k3s'),
 }
 SERVICE_PORTS = {
     '192.168.3.19:5000': 'PC2 · Flask API',
@@ -92,7 +94,7 @@ def zabbix_dashboard():
     token = os.getenv('ZABBIX_API_TOKEN', '').strip()
     result = {'configured': bool(base and token), 'connected': False, 'updated_at': None,
               'nodes': [], 'services': [], 'metrics': {}, 'history': {},
-              'pc1_metrics': {}, 'pc1_history': {}, 'problems': [], 'message': None}
+              'vm_cpu': [], 'pc1_metrics': {}, 'pc1_history': {}, 'problems': [], 'message': None}
     if not result['configured']:
         result['message'] = 'ZABBIX_API_URL 및 ZABBIX_API_TOKEN 서버 환경변수를 설정하세요.'
         return ok(result)
@@ -145,6 +147,28 @@ def zabbix_dashboard():
                         'sortfield': 'clock', 'sortorder': 'ASC', 'limit': 180,
                     }, base, token)
                     result[history_key][key] = [{'t': int(p['clock']), 'v': float(p['value'])} for p in samples]
+        # Linux CPU utilization is separate from Windows resource and reachability checks.
+        for label, host_key, ip in [('PC1 VM', 'pc1_vm', os.getenv('ZABBIX_PC1_IP', '192.168.7.185')),
+                                     ('PC2 VM', 'pc2_vm', os.getenv('ZABBIX_PC2_IP', '192.168.7.100'))]:
+            vm_items = [x for x in items if x['hostid'] == ids.get(TARGETS[host_key])]
+            item = next((x for x in vm_items if x.get('key_') == 'system.cpu.util' and x.get('name', '').lower() == 'cpu utilization'), None)
+            if item is None:
+                item = next((x for x in vm_items if x.get('key_') == 'system.cpu.util[,idle]'), None)
+            value = _numeric(item) if item else None
+            clock = int(item.get('lastclock') or 0) if item else 0
+            if not clock or not 0 <= now - clock <= 180 or value is None or not 0 <= value <= 100:
+                value = None
+            idle = bool(item and item.get('key_') == 'system.cpu.util[,idle]')
+            samples = []
+            if value is not None and item.get('value_type') in ('0', '3'):
+                rows = _rpc('history.get', {'output': 'extend', 'history': int(item['value_type']),
+                    'itemids': [item['itemid']], 'time_from': now - 3600,
+                    'sortfield': 'clock', 'sortorder': 'ASC', 'limit': 180}, base, token)
+                samples = [{'t': int(p['clock']), 'v': round(100 - float(p['value']), 3) if idle else float(p['value'])}
+                           for p in rows if 0 <= float(p['value']) <= 100]
+            result['vm_cpu'].append({'name': label, 'ip': ip, 'host': TARGETS[host_key],
+                'value': round(100 - value, 3) if idle and value is not None else value,
+                'checked_at': clock or None, 'history': samples})
         problems = _rpc('problem.get', {
             'output': ['eventid', 'name', 'severity', 'clock'], 'recent': False,
             'sortfield': ['eventid'], 'sortorder': 'DESC', 'limit': 20,
