@@ -52,7 +52,6 @@ export const router = createBrowserRouter([
         { path: 'notices', element: <NoticesPage /> },
         { path: 'notices/:id', element: <NoticeDetailPage /> },
         { path: 'billing/kakaopay/:result', element: <KakaoPayResultPage /> },
-        { path: 'membership/kakaopay/:result', element: <KakaoPayResultPage /> },
         { path: 'support', element: <SupportPage /> },
         { path: 'support/:id', element: <SupportDetailPage /> },
         { path: 'settings', element: <ProfileSettingsPage /> },

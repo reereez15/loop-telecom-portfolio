@@ -51,12 +51,10 @@ def _register_blueprints(app: Flask) -> None:
     from .incidents.routes import bp as incidents_bp
     from .membership.routes import admin_bp as membership_admin_bp
     from .membership.routes import bp as membership_bp
-    from .membership.upgrade import bp as membership_upgrade_bp
     from .payments.routes import bp as payments_bp
     from .plans.routes import bp as plans_bp
     from .support.routes import bp as support_bp
 
     for bp in (health_bp, auth_bp, dashboard_bp, plans_bp, support_bp,
-               membership_bp, membership_admin_bp, membership_upgrade_bp,
-               shop_bp, notices_bp, payments_bp, incidents_bp, protection_bp, admin_bp, zabbix_bp):
+               membership_bp, membership_admin_bp, shop_bp, notices_bp, payments_bp, incidents_bp, protection_bp, admin_bp, zabbix_bp):
         app.register_blueprint(bp)

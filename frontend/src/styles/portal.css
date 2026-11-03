@@ -59,11 +59,6 @@ input::placeholder,textarea::placeholder { color:var(--ink-soft); opacity:1; }
 .membership-upgrade-card__rate span { margin-left:4px; font-size:.85rem; font-weight:500; }
 .membership-upgrade-card__price { color:var(--ink-soft); font-size:.8rem; }
 .membership-upgrade-card .btn { margin-top:auto; width:100%; padding-inline:10px; }
-.membership-upgrade-form { display:flex; flex-direction:column; gap:.6rem; margin-top:auto; }
-.membership-upgrade-form label { display:flex; flex-direction:column; gap:.25rem; font-size:.85rem; color:var(--ink-soft); }
-.membership-upgrade-form select { padding:.45rem .5rem; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink); }
-.membership-upgrade-form .row { display:flex; flex-wrap:wrap; gap:.5rem; }
-.membership-upgrade-form .row .btn { width:auto; flex:1 1 auto; margin-top:0; }
 .membership-payment-note { margin-top:16px; font-size:.8rem; }
 .membership-page .cards { grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:18px; }
 .membership-page .cards .card { padding:22px; }

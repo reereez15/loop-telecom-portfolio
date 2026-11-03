@@ -101,20 +101,11 @@ export type Membership =
   | {
       joined: true
       tier: { code: string; name: string; rank: number; earn_rate_bp: number }
-      tiers: { name: string; rank: number; earn_rate_bp: number; min_monthly_fee: number; price: number; admin_only?: boolean }[]
+      tiers: { name: string; rank: number; earn_rate_bp: number; min_monthly_fee: number; admin_only?: boolean }[]
       next_tier: { name: string; min_monthly_fee: number } | null
       point_balance: number
       joined_at: string
     }
-
-// 등급 직접 구매 결과. 구매 이력 테이블을 두지 않아 서버는 성공한 결과만 돌려준다.
-export interface MembershipUpgradeResult {
-  to_tier_rank: number
-  to_tier_name: string
-  amount: number
-  method: 'MOCK_CARD' | 'KAKAOPAY'
-  transaction_ref?: string
-}
 
 export interface Benefit {
   id: number
