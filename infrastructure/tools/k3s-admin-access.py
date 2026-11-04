@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Enable session/ADMIN authorization on the academy public edge; no DB changes."""
+"""Block admin paths on the public edge, preserving the separate private entry.
+
+This version ADDS four public denials. It does not change pfSense, services,
+private-admin resources, application authentication, DBs or Secrets.
+"""
 import argparse
-import difflib
 import hashlib
 import json
 import os
@@ -17,10 +20,7 @@ CONFIGMAP = 'telecom-edge-config'
 DEPLOYMENT = 'telecom-edge'
 KEY = 'nginx.conf'
 TOKEN = re.compile(r'''\s+|\#[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[{};]|[^\s{};\#"']+''')
-ADMIN_HEADERS = {
-    ('=', '/admin'), ('^~', '/admin/'), ('=', '/api/admin'),
-    ('^~', '/api/admin/'), ('~', '^/api/admin/'), ('~*', '^/api/admin/'),
-}
+STATE_FORMAT = 'telecom-public-admin-guard-v1'
 AUDIT = r'''
 import inspect, json
 from wsgi import app
@@ -52,7 +52,7 @@ print('ADMIN_AUDIT=' + json.dumps({'routes': count, 'anonymous': status}))
 
 def kubectl(*args, input_text=None):
     result = subprocess.run(['sudo', '-n', 'k3s', 'kubectl', '-n', NAMESPACE, *args],
-                            input=input_text, text=True, capture_output=True)
+                            input=input_text, text=True, capture_output=True, timeout=240)
     if result.returncode:
         # Do not print imported application errors or credentials to shared output.
         raise RuntimeError('kubectl failed: ' + ' '.join(args[:3]) + '; exit=' + str(result.returncode))
@@ -117,21 +117,103 @@ def validate_routes(text):
             raise ValueError('Unexpected public API/web upstream; inspect manually.')
 
 
+DENIALS = (('=', '/admin'), ('^~', '/admin/'),
+           ('=', '/api/admin'), ('^~', '/api/admin/'))
+
+
+def config_blocks(text):
+    """Read block ancestry without interpreting comments or quoted braces."""
+    tokens = []
+    offset = 0
+    for m in TOKEN.finditer(text):
+        if m.start() != offset:
+            raise ValueError('Unrecognized Nginx syntax.')
+        offset = m.end()
+        if not m.group().isspace() and not m.group().startswith('#'):
+            tokens.append((m.group(), m.start(), m.end()))
+    if offset != len(text):
+        raise ValueError('Incomplete Nginx token.')
+    stack, blocks, begin = [], [], 0
+    for i, (value, start, end) in enumerate(tokens):
+        if value == '{':
+            b = {'header': tuple(t[0] for t in tokens[begin:i]),
+                 'parent': stack[-1] if stack else None,
+                 'start': tokens[begin][1], 'end': None, 'directives': []}
+            blocks.append(b)
+            stack.append(b)
+            begin = i + 1
+        elif value == '}':
+            if not stack or begin != i:
+                raise ValueError('Unbalanced or incomplete Nginx directive.')
+            stack.pop()['end'] = end
+            begin = i + 1
+        elif value == ';':
+            directive = tuple(t[0] for t in tokens[begin:i])
+            if directive and directive[0] == 'include' and directive != ('include', '/etc/nginx/mime.types'):
+                raise ValueError('Unknown include; inspect configuration manually.')
+            if stack:
+                stack[-1]['directives'].append(directive)
+            begin = i + 1
+    if stack or begin != len(tokens):
+        raise ValueError('Unclosed Nginx configuration.')
+    return blocks
+
+
 def candidate_config(text):
     validate_routes(text)
-    spans = []
-    for header, body, start, end in locations(text):
-        if any('admin' in value.lower() for value in header):
-            if header not in ADMIN_HEADERS or body != ('return', '404', ';'):
-                raise ValueError('Unknown admin location; refusing to change it: ' + str(header))
-            spans.append((start, end))
-    if not spans:
-        raise ValueError('No known admin 404 blocks found; inspect the current policy first.')
-    updated = text
-    for start, end in reversed(spans):
-        updated = updated[:start] + updated[end:]
+    blocks = config_blocks(text)
+    servers = [b for b in blocks if b['header'] == ('server',)
+               and b['parent'] is not None and b['parent']['header'] == ('http',)]
+    if len(servers) != 1:
+        raise ValueError('Expected exactly one HTTP server; inspect configuration manually.')
+    server = servers[0]
+    direct = [b for b in blocks if b['parent'] is server]
+    for scope in (server['parent'], server):
+        if any(d and d[0] in ('rewrite', 'return', 'error_page', 'try_files') for d in scope['directives']):
+            raise ValueError('Server/HTTP routing override requires manual review.')
+    if any(b['header'] and b['header'][0] == 'if' for b in direct):
+        raise ValueError('Server-level conditional routing requires manual review.')
+    api = [b for b in direct if b['header'] == ('location', '/api/')]
+    web = [b for b in direct if b['header'] == ('location', '/')]
+    if len(api) != 1 or len(web) != 1:
+        raise ValueError('Expected direct public API and Web locations in one server.')
+    direct_starts = {b['start'] for b in direct}
+    for header in (('=', '/api/internal'), ('^~', '/api/internal/')):
+        bodies = [body for h, body, start, _ in locations(text) if h == header and start in direct_starts]
+        if bodies != [('return', '404', ';')]:
+            raise ValueError('Internal denial must be directly in the public server.')
+    existing = [(h, b) for h, b, _, _ in locations(text)
+                if any('admin' in value.lower() for value in h)]
+    if existing:
+        if len(existing) != 4 or {h for h, _ in existing} != set(DENIALS) or any(b != ('return', '404', ';') for _, b in existing):
+            raise ValueError('Unknown or partial admin policy; refusing to overwrite it.')
+        if any(not any(b['header'] == ('location',) + h for b in direct) for h in DENIALS):
+            raise ValueError('Admin policy is outside the expected server.')
+        return text, 0
+    start = text.rfind('\n', 0, api[0]['start']) + 1
+    indent = text[start:api[0]['start']]
+    if indent.strip():
+        raise ValueError('Expected an API location on its own line.')
+    newline = '\r\n' if '\r\n' in text else '\n'
+    addition = ''.join(indent + 'location ' + ' '.join(h) + ' { return 404; }' + newline
+                       for h in DENIALS)
+    updated = text[:start] + addition + text[start:]
     validate_routes(updated)
-    return updated, len(spans)
+    before_other = [(h, b) for h, b, _, _ in locations(text)]
+    after_other = [(h, b) for h, b, _, _ in locations(updated) if h not in DENIALS]
+    if before_other != after_other:
+        raise ValueError('Unexpected change to another location.')
+    return updated, 4
+
+
+def assert_public_admin_blocked(text):
+    """Require all four live public denials, internal denials and known upstreams."""
+    try:
+        _, additions = candidate_config(text)
+    except ValueError as error:
+        raise RuntimeError('Invalid public edge policy: ' + str(error)) from error
+    if additions:
+        raise RuntimeError('Public edge is missing admin 404 blocks. Run a fresh guard plan/apply first.')
 
 
 def template_hash(deployment):
@@ -176,11 +258,17 @@ def edge_snapshot():
     if users != [DEPLOYMENT]:
         raise RuntimeError('ConfigMap is missing or shared by other deployments: ' + str(users))
     prepared_pods(DEPLOYMENT, 'edge')
+    private = get('deployment', 'telecom-admin-edge')
+    if private.get('status', {}).get('readyReplicas', 0) < 1:
+        raise RuntimeError('Private admin deployment must have a Ready replica first.')
     return deployment
 
 
-def validate_nginx(text):
-    for pod in prepared_pods(DEPLOYMENT, 'edge'):
+def validate_nginx(text, recovery=False):
+    targets = [pod for pod in pods(DEPLOYMENT) if ready(pod, 'edge')] if recovery else prepared_pods(DEPLOYMENT, 'edge')
+    if not targets:
+        raise RuntimeError('No Ready edge is available for nginx -t.')
+    for pod in targets:
         name = pod['metadata']['name']
         path = '/tmp/telecom-admin-' + uuid.uuid4().hex + '.conf'
         try:
@@ -207,14 +295,22 @@ def write_config(path, text):
         stream.write(text)
 
 
-def refresh_edge(snapshot):
-    originals = [pod['metadata']['name'] for pod in prepared_pods(DEPLOYMENT, 'edge')]
+def refresh_edge(snapshot, recovery=False, expected_config=None):
+    initial = pods(DEPLOYMENT) if recovery else prepared_pods(DEPLOYMENT, 'edge')
+    if len(initial) != 2:
+        raise RuntimeError('Expected exactly two edge pods; inspect before refreshing.')
+    # During recovery, replace the failed pod first while its peer stays available.
+    originals = [pod['metadata']['name'] for pod in sorted(initial, key=lambda p: ready(p, 'edge'))]
     # Recreate one pod at a time; required anti-affinity needs a free node slot.
     for name in originals:
         current = get('deployment', DEPLOYMENT)
         if template_hash(current) != snapshot['template_hash'] or current['metadata']['uid'] != snapshot['deployment_uid']:
             raise RuntimeError('Deployment changed concurrently; stop pod refresh.')
-        prepared_pods(DEPLOYMENT, 'edge')
+        if expected_config is not None and get('configmap', CONFIGMAP)['data'][KEY] != expected_config:
+            raise RuntimeError('Public configuration changed concurrently; stop refresh.')
+        if not recovery:
+            prepared_pods(DEPLOYMENT, 'edge')
+        print('Replacing public edge pod:', name, flush=True)
         kubectl('delete', 'pod', name, '--wait=true', '--timeout=60s')
         deadline = time.monotonic() + 180
         while time.monotonic() < deadline:
@@ -227,15 +323,20 @@ def refresh_edge(snapshot):
 
 
 def patch_config(current, text, directory):
-    patch = {'metadata': {'resourceVersion': current['metadata']['resourceVersion']}, 'data': {KEY: text}}
+    patch = [
+        {'op': 'test', 'path': '/metadata/uid', 'value': current['metadata']['uid']},
+        {'op': 'test', 'path': '/metadata/resourceVersion', 'value': current['metadata']['resourceVersion']},
+        {'op': 'test', 'path': '/data/nginx.conf', 'value': current['data'][KEY]},
+        {'op': 'replace', 'path': '/data/nginx.conf', 'value': text},
+    ]
     write_json(directory / 'patch.json', patch)
-    kubectl('patch', 'configmap', CONFIGMAP, '--type=merge', '--patch-file', str(directory / 'patch.json'))
+    kubectl('patch', 'configmap', CONFIGMAP, '--type=json', '--patch-file', str(directory / 'patch.json'))
 
 
 def load_state(directory):
     state = json.loads((directory / 'state.json').read_text())
-    if state.get('format') != 'telecom-admin-access-v1':
-        raise ValueError('Unknown state format.')
+    if state.get('format') != STATE_FORMAT:
+        raise ValueError('Unknown or legacy access-enabling plan. Use a fresh public-denial plan.')
     return state
 
 
@@ -245,10 +346,14 @@ def rollback(directory, state):
     candidate = read_config(directory / 'candidate.conf')
     if current['metadata']['uid'] != before['metadata']['uid'] or current['data'][KEY] not in (before['data'][KEY], candidate):
         raise RuntimeError('ConfigMap changed concurrently; refusing rollback overwrite.')
+    deployment = get('deployment', DEPLOYMENT)
+    if deployment['metadata']['uid'] != state['deployment_uid'] or template_hash(deployment) != state['template_hash']:
+        raise RuntimeError('Deployment changed concurrently; refusing rollback.')
+    validate_nginx(before['data'][KEY], recovery=True)
     patch_config(current, before['data'][KEY], directory)
     state['stage'] = 'config-restored-refresh-pending'
     write_json(directory / 'state.json', state)
-    refresh_edge(state)
+    refresh_edge(state, recovery=True, expected_config=before['data'][KEY])
     state['stage'] = 'rolled-back'
     write_json(directory / 'state.json', state)
 
@@ -259,16 +364,15 @@ def plan(directory):
     deployment = edge_snapshot()
     before = get('configmap', CONFIGMAP)
     candidate, count = candidate_config(before['data'][KEY])
-    validate_nginx(candidate)
     write_json(directory / 'before.json', before)
+    write_json(directory / 'deployment-before.json', deployment)
     write_config(directory / 'candidate.conf', candidate)
-    state = {'format': 'telecom-admin-access-v1', 'stage': 'planned',
+    validate_nginx(candidate)
+    state = {'format': STATE_FORMAT, 'stage': 'planned',
              'deployment_uid': deployment['metadata']['uid'], 'template_hash': template_hash(deployment)}
     write_json(directory / 'state.json', state)
-    (Path.home() / '.telecom-admin-access-workdir').write_text(str(directory))
-    print(''.join(difflib.unified_diff(before['data'][KEY].splitlines(True), candidate.splitlines(True),
-                                       fromfile='before', tofile='candidate')))
-    print('PLAN OK; admin 404 blocks removed:', count)
+    (Path.home() / '.telecom-public-admin-guard-workdir').write_text(str(directory))
+    print('PLAN_OK: public admin 404 blocks to add:', count)
     print('WORK_DIR=' + str(directory))
     print('Service configuration unchanged. Candidate passed nginx -t on both edge pods.')
 
@@ -290,11 +394,28 @@ def apply(directory):
             or current['data'][KEY] != before['data'][KEY]):
         raise RuntimeError('Configuration changed after planning; create a fresh plan.')
     validate_nginx(candidate)
-    patch_config(current, candidate, directory)
+    if candidate == before['data'][KEY]:
+        effective_ok = True
+        for pod in prepared_pods(DEPLOYMENT, 'edge'):
+            effective = kubectl('exec', pod['metadata']['name'], '-c', 'edge', '--', 'nginx', '-T')
+            _, additions = candidate_config(effective)
+            effective_ok = effective_ok and additions == 0
+        if effective_ok:
+            state['stage'] = 'already-protected'
+            write_json(directory / 'state.json', state)
+            print('ALREADY_PROTECTED: both pods have the public denials; no restart required.')
+            return
+    else:
+        patch_config(current, candidate, directory)
     state['stage'] = 'config-updated-refresh-pending'
     write_json(directory / 'state.json', state)
     try:
-        refresh_edge(state)
+        refresh_edge(state, expected_config=candidate)
+        for pod in prepared_pods(DEPLOYMENT, 'edge'):
+            effective = kubectl('exec', pod['metadata']['name'], '-c', 'edge', '--', 'nginx', '-T')
+            _, count = candidate_config(effective)
+            if count:
+                raise RuntimeError('New public edge does not contain all four admin denials.')
     except Exception:
         try:
             rollback(directory, state)
@@ -302,10 +423,10 @@ def apply(directory):
         except Exception:
             print('Recovery incomplete; keep this work directory and inspect pods before retrying.', file=sys.stderr)
         raise
-    state['stage'] = 'applied-needs-role-tests'
+    state['stage'] = 'applied-needs-http-tests'
     write_json(directory / 'state.json', state)
-    print('APPLIED: same public URL now forwards admin requests to server authorization.')
-    print('Verify anonymous 401, CUSTOMER 403, ADMIN 200 and internal API 404 from another academy PC.')
+    print('APPLIED: four public admin denials verified; two public edges Ready.')
+    print('Verify public customer/ready 200, public admin 404, private-admin login/data and a denied PC using a fresh connection.')
 
 
 def main():
@@ -317,18 +438,21 @@ def main():
         parser.error('Run this tool in the PC1 Ubuntu VM, not Windows.')
     os.umask(0o077)
     if args.action == 'plan':
-        directory = args.work_dir or Path.home() / '.local/state/telecom-admin-access' / (time.strftime('%Y%m%d-%H%M%S-') + uuid.uuid4().hex[:8])
+        directory = args.work_dir or Path.home() / '.local/state/telecom-public-admin-guard' / (time.strftime('%Y%m%d-%H%M%S-') + uuid.uuid4().hex[:8])
         plan(directory)
         return
     if not args.work_dir:
-        parser.error('--work-dir is required for apply/status/rollback')
+        pointer = Path.home() / '.telecom-public-admin-guard-workdir'
+        if not pointer.is_file():
+            parser.error('Run plan successfully first, or provide --work-dir.')
+        args.work_dir = Path(pointer.read_text().strip())
     directory = args.work_dir.resolve()
     state = load_state(directory)
     if args.action == 'apply':
         apply(directory)
     elif args.action == 'rollback':
         rollback(directory, state)
-        print('ROLLED BACK: original public admin blocking restored.')
+        print('ROLLED BACK: pre-change public configuration restored; admin may be open again.')
     else:
         current = get('configmap', CONFIGMAP)
         print('Stage:', state['stage'])

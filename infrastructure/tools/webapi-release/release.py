@@ -3,6 +3,7 @@ import argparse
 import base64
 import copy
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -209,20 +210,38 @@ def rollout(name):
         raise RuntimeError('Rollout incomplete: ' + name)
 
 
-def assert_admin_not_blocked(config):
-    """Catch the known public-edge 404 regression; role tests remain separate."""
-    config = re.sub(r'^\s*#.*$', '', config, flags=re.MULTILINE)
-    if re.search(r'location\s+(?:(?:=|\^~)\s+)?/(?:api/)?admin/?\s*\{\s*return\s+404\s*;', config):
-        raise RuntimeError('Public edge blocks admin with 404. Repair edge policy before deploying/verifying.')
+def edge_policy_tool():
+    """Use the same fail-closed parser in the checkout and standalone release."""
+    directory = Path(__file__).resolve().parent
+    source = directory / 'k3s-admin-access.py'
+    if not source.is_file() and directory.name == 'webapi-release':
+        source = directory.parent / 'k3s-admin-access.py'
+    if not source.is_file():
+        raise RuntimeError('Missing k3s-admin-access.py in release package. Rebuild the package.')
+    spec = importlib.util.spec_from_file_location('public_admin_guard', source)
+    policy = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(policy)
+    return policy
 
 
 def verify_admin_edge_policy():
+    policy = edge_policy_tool()
     current = json.loads(k(['get', 'configmap', 'telecom-edge-config', '-o', 'json']))
-    assert_admin_not_blocked(current['data']['nginx.conf'])
+    policy.assert_public_admin_blocked(current['data']['nginx.conf'])
     for pod in pods('telecom-edge'):
         config = k(['exec', pod['metadata']['name'], '-c', 'edge', '--', 'nginx', '-T'])
-        assert_admin_not_blocked(config)
-    print('PASS: known admin 404 blocks absent from public edge ConfigMap and both Pods. Role tests still required.')
+        policy.assert_public_admin_blocked(config)
+    private_edge = json.loads(k(['get', 'deployment', 'telecom-admin-edge', '-o', 'json']))
+    if private_edge.get('status', {}).get('readyReplicas', 0) < 1:
+        raise RuntimeError('Private admin edge must have a Ready replica before release.')
+    for pod in pods('telecom-api'):
+        output = k(['exec', pod['metadata']['name'], '-c', 'api', '--', 'python', '-c', policy.AUDIT])
+        reports = [json.loads(line[len('ADMIN_AUDIT='):]) for line in output.splitlines()
+                   if line.startswith('ADMIN_AUDIT=')]
+        if len(reports) != 1 or reports[0].get('anonymous') != 401 or reports[0].get('routes', 0) < 1:
+            raise RuntimeError('API ADMIN authorization audit failed.')
+    print('PASS: public admin/internal 404 policy and customer upstreams verified in ConfigMap and both Pods.')
+    print('PASS: private admin edge Ready; API ADMIN protection verified. HTTP/login/PC/VPN tests still required.')
 
 
 def verify(directory, metadata):

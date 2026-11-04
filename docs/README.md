@@ -11,6 +11,8 @@
 
 ## 최신 현장 기록
 
+- [2026-11-04 공개 관리자 404·재배포 정책과 남은 PC/VPN 검증](operations/2026-11-04-public-admin-guard.md)
+
 - [PC2 Primary 예약 백업·Discord 감시: 기존 작업 유지와 비활성 준비 절차](runbooks/mysql84-primary-schedule.md)
 
 - [2026-10-28 PC2 앱 계정·제한접속·25개테이블 복원 확인과 Primary 백업 모드 준비](runbooks/mysql84-primary-backup.md)
@@ -22,7 +24,7 @@
 - [2026-10-27 자동화 API 입구 배포·PC2 미인증401 확인 및 n8n 담당자 인계](operations/2026-10-27-automation-ingress-handoff.md)
 - [2026-10-27 DB 보안 후속 인계: webuser·PC1 적용 보고·PC2 및 파트별 검증](operations/2026-10-27-db-security-handoff.md)
 - [2026-10-27 웹·DB 복제·백업 복구와 프론트엔드 재배포](operations/2026-10-27-service-recovery.md)
-- [학원망 공통 HTTPS 주소의 ADMIN 권한 기반 접근 전환 도구·절차 — 현장 적용 전](runbooks/academy-admin-access.md)
+- [공개 관리자 UI/API 404와 관리 전용 입구 유지 — 2026-11-04 정책](runbooks/academy-admin-access.md)
 - [MySQL 사용자 PC 직접 접근 제한·앱 계정 분리 — 현장 사전 점검](runbooks/mysql-network-access-hardening.md)
 - [보고서 기반 Windows DB 포트 제한 도구와 PC1→PC2 적용·복구](runbooks/mysql-firewall-scope.md)
 - [2026-10-26 후속: 서비스 IP·인증서 적용 진행과 스위치 재연결 후 VM 네트워크 복구 중](operations/2026-10-26-network-recovery.md)

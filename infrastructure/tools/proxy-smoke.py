@@ -1,6 +1,7 @@
 """Test local TLS/reverse-proxy boundaries using disposable Nginx fixtures, not A's app."""
 from pathlib import Path
 import http.client
+import importlib.util
 import json
 import socket
 import ssl
@@ -26,11 +27,12 @@ def mount(source, target):
     return ["--mount", f"type=bind,src={source},dst={target},readonly"]
 
 
-def container(name, options):
+def container(name, options, command=()):
     identity = run("create", "--name", f"{prefix}-{name}", "--network", network_id,
-                   "--network-alias", name, *options, IMAGE)
+                   "--network-alias", name, *options, IMAGE, *command)
     containers.append(identity)
     run("start", identity)
+    return identity
 
 
 def main():
@@ -58,9 +60,9 @@ def main():
     context = ssl.create_default_context(cafile=str(tls / "ca.crt"))
     tests = []
 
-    def request(path, *, tls_enabled=True, headers=None):
+    def request(path, *, tls_enabled=True, headers=None, port=18443):
         if tls_enabled:
-            connection = http.client.HTTPSConnection("127.0.0.1", 18443, context=context, timeout=3)
+            connection = http.client.HTTPSConnection("127.0.0.1", port, context=context, timeout=3)
         else:
             connection = http.client.HTTPConnection("127.0.0.1", 18088, timeout=3)
         try:
@@ -72,8 +74,8 @@ def main():
 
     try:
         network_id = run("network", "create", prefix)
-        container("api", mount(directory / "api.conf", "/etc/nginx/conf.d/default.conf"))
-        container("web", mount(directory / "web.conf", "/etc/nginx/conf.d/default.conf")
+        container("api", ["--network-alias", "telecom-api"] + mount(directory / "api.conf", "/etc/nginx/conf.d/default.conf"))
+        container("web", ["--network-alias", "telecom-web"] + mount(directory / "web.conf", "/etc/nginx/conf.d/default.conf")
                   + mount(directory / "index.html", "/usr/share/nginx/html/index.html"))
         container("edge", ["-p", "127.0.0.1:18088:80", "-p", "127.0.0.1:18443:443"]
                   + mount(ROOT / "infrastructure/docker/compose/local/nginx.conf", "/etc/nginx/conf.d/default.conf")
@@ -101,6 +103,40 @@ def main():
                      "//api/admin/incidents", "/api/x/../admin/incidents"):
             assert request(path)[0] == 404, f"Public boundary bypass: {path}"
         tests.append("public admin/internal paths blocked, including normalized paths")
+        # Exercise the candidate produced by the operational k3s tool against real Nginx.
+        spec = importlib.util.spec_from_file_location("public_admin_guard", Path(__file__).with_name("k3s-admin-access.py"))
+        guard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guard)
+        candidate, additions = guard.candidate_config('''events { worker_connections 128; }
+http {
+    server {
+        listen 8443 ssl;
+        ssl_certificate /etc/nginx/tls/server.crt;
+        ssl_certificate_key /etc/nginx/tls/server.key;
+        location = /api/internal { return 404; }
+        location ^~ /api/internal/ { return 404; }
+        location /api/ { proxy_pass http://telecom-api:5000; }
+        location / { proxy_pass http://telecom-web:80; }
+    }
+}
+''')
+        assert additions == 4
+        (directory / "guard.conf").write_text(candidate, encoding="utf-8")
+        guarded = container("guard", ["-p", "127.0.0.1::8443"]
+                            + mount(directory / "guard.conf", "/tmp/guard.conf")
+                            + mount(tls / "server.crt", "/etc/nginx/tls/server.crt")
+                            + mount(tls / "server.key", "/etc/nginx/tls/server.key"),
+                            ["nginx", "-c", "/tmp/guard.conf", "-g", "daemon off;"])
+        run("exec", guarded, "nginx", "-t", "-c", "/tmp/guard.conf")
+        guard.assert_public_admin_blocked(run("exec", guarded, "nginx", "-T", "-c", "/tmp/guard.conf"))
+        port = int(json.loads(run("inspect", guarded))[0]["NetworkSettings"]["Ports"]["8443/tcp"][0]["HostPort"])
+        assert request("/dashboard", port=port)[0] == 200
+        assert request("/api/health/ready", port=port)[0] == 200
+        for path in ("/admin", "/admin/", "/admin/customers", "/api/admin", "/api/admin/",
+                     "/api/admin/dashboard", "/api/internal", "/api/internal/probe",
+                     "/api/%61dmin/dashboard", "//api/admin/dashboard", "/api/x/../admin/dashboard"):
+            assert request(path, port=port)[0] == 404, f"Generated guard bypass: {path}"
+        tests.append("generated k3s candidate: nginx -t/-T, customer 200 and admin/internal 404")
         print(json.dumps({"test": "B-TLS-PROXY", "status": "PASS", "checks": tests,
                           "scope": "disposable fixtures; actual A app not tested"}, ensure_ascii=False))
     finally:

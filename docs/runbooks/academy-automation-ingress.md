@@ -13,12 +13,12 @@ PC2 n8n (192.168.3.19)
   → telecom-api:5000 (기존 k3s API, webuser DB 연결)
 ```
 
-- 일반 웹 `https://192.168.3.30`은 계속 `/api/internal`과 `/api/internal/*`를 404로 막는다. ADMIN 페이지는 기존처럼 서버가 세션과 역할로 판정한다.
+- 일반 웹 `https://192.168.3.30`은 `/api/internal` 계열과 `/admin`, `/api/admin` 계열을 404로 막는다. 관리자는 별도 `.7.178:9443/admin`에서 세션과 ADMIN 권한을 검증한다. [2026-11-04 정책](academy-admin-access.md)을 따른다.
 - 새 프록시는 아래 5개의 정확한 경로·메서드만 전달한다. 그 외는 404, 잘못된 메서드는 405다. 전용 입구로 고객/관리자 화면을 제공하지 않는다.
 - **pfSense의 원본 Source 제한이 필수다.** SNAT 후 Nginx는 PC2 원본 대신 `.3.30`을 보므로 그 주소만 허용한다. 이 Nginx allow가 PC2 제한을 대신하지 않는다.
 - NodePort의 `Local`은 출발지 보존을 위한 설정이다. 노드별 프록시가 Ready여야 해당 노드로 접근할 수 있다. 일반 PC의 직접 NodePort 호출은 허용하지 않는다.
 - DB 3306, 공개 edge 설정, API Deployment/Secret, 기존 9443 규칙은 이 도구로 변경하지 않는다. 이미지 재빌드·DB migration도 필요 없다.
-- 현재 관제 문서의 “공개 관리자 API 404” 부분은 ADMIN 접근 변경 이전 기록이다. 내부 API 차단과 관리자 로그인 권한을 구분한다.
+- 과거의 공개 ADMIN 접근 허용 절차는 대체되었다. 공개 관리자 API 404와 사설 관리자 인증 유지가 현재 정책이며, 이 자동화 도구는 공개 Edge를 변경하지 않는다.
 
 | 메서드 | n8n 호출 URL | n8n Header Auth Credential에 저장할 토큰 |
 |---|---|---|

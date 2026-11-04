@@ -3,6 +3,7 @@ import importlib.util
 import io
 import hashlib
 import json
+import shutil
 from pathlib import Path
 import tarfile
 import tempfile
@@ -13,6 +14,22 @@ from dotenv import dotenv_values
 spec = importlib.util.spec_from_file_location('release', Path(__file__).with_name('release.py'))
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
+
+CONFIG = '''events { worker_connections 512; }
+http {
+  server {
+    listen 8443 ssl;
+    location = /admin { return 404; }
+    location ^~ /admin/ { return 404; }
+    location = /api/admin { return 404; }
+    location ^~ /api/admin/ { return 404; }
+    location = /api/internal { return 404; }
+    location ^~ /api/internal/ { return 404; }
+    location /api/ { proxy_pass http://telecom-api-local:5000; }
+    location / { proxy_pass http://telecom-web-local:80; }
+  }
+}
+'''
 
 
 class ReleaseTests(unittest.TestCase):
@@ -59,10 +76,10 @@ class ReleaseTests(unittest.TestCase):
 
     def test_admin_regression_stops_image_apply_before_mutation(self):
         with tempfile.TemporaryDirectory(dir=self.test_root) as directory, patch.object(release, 'k') as cluster, \
-             patch.object(release, 'verify_admin_edge_policy', side_effect=RuntimeError('admin blocked')):
+             patch.object(release, 'verify_admin_edge_policy', side_effect=RuntimeError('admin denial missing')):
             target = Path(directory)
             (target / 'import-ok.json').touch()
-            with self.assertRaisesRegex(RuntimeError, 'admin blocked'):
+            with self.assertRaisesRegex(RuntimeError, 'admin denial missing'):
                 release.apply_images(target, {})
             cluster.assert_not_called()
             self.assertFalse((target / 'deployment-state.json').exists())
@@ -80,11 +97,61 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(changed['spec']['containers'][0]['image'], 'new-api')
 
     def test_admin_edge_regression_guard(self):
-        for path in ('/admin', '/admin/', '/api/admin', '/api/admin/'):
-            with self.subTest(path=path), self.assertRaises(RuntimeError):
-                release.assert_admin_not_blocked('location ^~ ' + path + ' { return 404; }')
-        release.assert_admin_not_blocked('location ^~ /api/internal/ { return 404; }')
-        release.assert_admin_not_blocked('# location = /admin { return 404; }\nlocation /api/ { proxy_pass http://telecom-api-local:5000; }')
+        policy = release.edge_policy_tool()
+        policy.assert_public_admin_blocked(CONFIG)
+        for line in ('location = /admin { return 404; }', 'location ^~ /admin/ { return 404; }',
+                     'location = /api/admin { return 404; }', 'location ^~ /api/admin/ { return 404; }',
+                     'location = /api/internal { return 404; }'):
+            with self.subTest(line=line), self.assertRaises(RuntimeError):
+                policy.assert_public_admin_blocked(CONFIG.replace(line, ''))
+        commented = CONFIG.replace('location = /admin { return 404; }', '# location = /admin { return 404; }')
+        with self.assertRaises(RuntimeError):
+            policy.assert_public_admin_blocked(commented)
+
+    def check_policy(self, *, live_config=CONFIG, ready=1, audit_status=401):
+        calls = []
+        def fake_k(args, data=None):
+            calls.append(args)
+            self.assertIn(args[0], ('get', 'exec'))
+            if args[:3] == ['get', 'configmap', 'telecom-edge-config']:
+                return json.dumps({'data': {'nginx.conf': CONFIG}})
+            if args[:3] == ['get', 'deployment', 'telecom-admin-edge']:
+                return json.dumps({'status': {'readyReplicas': ready}})
+            if args[0] == 'exec' and 'nginx' in args:
+                return live_config
+            if args[0] == 'exec' and 'python' in args:
+                return 'ADMIN_AUDIT=' + json.dumps({'routes': 46, 'anonymous': audit_status})
+            raise AssertionError(args)
+        def pods(app):
+            return [{'metadata': {'name': app + '-' + str(i)}} for i in (1, 2)]
+        with patch.object(release, 'k', side_effect=fake_k), patch.object(release, 'pods', side_effect=pods):
+            release.verify_admin_edge_policy()
+        return calls
+
+    def test_policy_checks_both_effective_edges_and_api_authorization(self):
+        calls = self.check_policy()
+        self.assertEqual(len([c for c in calls if 'nginx' in c]), 2)
+        self.assertEqual(len([c for c in calls if 'python' in c]), 2)
+
+    def test_stale_edge_private_outage_or_bad_auth_fail_release(self):
+        for kwargs in ({'live_config': CONFIG.replace('location = /admin { return 404; }', '')},
+                       {'ready': 0}, {'audit_status': 200}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(RuntimeError):
+                self.check_policy(**kwargs)
+
+    def test_standalone_release_loads_bundled_policy_and_requires_it(self):
+        with tempfile.TemporaryDirectory(dir=self.test_root) as directory:
+            target = Path(directory)
+            shutil.copyfile(Path(release.__file__), target / 'release.py')
+            policy_source = Path(release.__file__).parent.parent / 'k3s-admin-access.py'
+            shutil.copyfile(policy_source, target / 'k3s-admin-access.py')
+            spec = importlib.util.spec_from_file_location('standalone_release', target / 'release.py')
+            standalone = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(standalone)
+            standalone.edge_policy_tool().assert_public_admin_blocked(CONFIG)
+        with patch.object(release.Path, 'is_file', return_value=False):
+            with self.assertRaisesRegex(RuntimeError, 'Missing k3s-admin-access.py'):
+                release.edge_policy_tool()
 
     def test_oci_index_id_resolves_to_runtime_config(self):
         revision = 'a' * 40
