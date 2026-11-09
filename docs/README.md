@@ -11,8 +11,6 @@
 
 ## 최신 현장 기록
 
-- [2026-11-04 인프라 시연 증거·39장 발표자료와 현재 정책 주의사항](operations/2026-11-04-infra-presentation-evidence.md)
-- [문경구 담당 발표 대본: 수정 PPT 39장 기준](presentations/2026-11-04-infra-speaker-script.md)
 
 - [2026-11-04 공개 관리자 404·재배포 정책과 남은 PC/VPN 검증](operations/2026-11-04-public-admin-guard.md)
 
