@@ -20,8 +20,10 @@ SECRET_TAGS = {
     "bcrypt-hash", "sha512-hash", "md5-hash", "password", "passwordenc", "pass", "passwd",
     "authorizedkeys", "ipsecpsk", "pre-shared-key", "psk", "otp_seed", "apikey", "api_key",
     "ldap_bindpw", "radius_secret", "radius_secret2", "radius_secret3", "radius_secret4", "secret",
-    # 인증서·키
-    "prv", "crt", "csr", "tls", "shared_key", "key",
+    # 인증서·키 (xmldata = sshdata 안의 SSH 호스트 키, gzip+base64)
+    "prv", "crt", "csr", "tls", "shared_key", "key", "xmldata",
+    # HAProxy
+    "stats_password", "stats_username", "basicauth_password", "authpass", "auth_secret",
     # 모니터링·알림·외부 서비스
     "rocommunity", "rwcommunity", "trapstring", "username_password", "smtppassword", "pushoverapikey",
     "pushoveruserkey", "telegramapi", "slack_api_key", "oinkcode", "oinkmastercode", "etpro_code",
@@ -49,6 +51,12 @@ def sanitize(text: str):
 
     names = "|".join(sorted((re.escape(t) for t in SECRET_TAGS), key=len, reverse=True))
     text = re.sub(rf"<({names})>(.*?)</\1>", repl, text, flags=re.S)
+
+    # 비밀은 아니지만 길기만 한 base64 견본 파일(Suricata SID 관리 예제 등)은 자리표시로 줄인다
+    def omit(m):
+        counts["content(base64 견본, 생략)"] = counts.get("content(base64 견본, 생략)", 0) + 1
+        return "<content>OMITTED_BASE64_SAMPLE</content>"
+    text = re.sub(r"<content>\s*[A-Za-z0-9+/=\s]{300,}</content>", omit, text)
     text, n = WEBHOOK.subn("https://REDACTED-WEBHOOK", text)
     if n:
         counts["webhook-url"] = n

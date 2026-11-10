@@ -1,0 +1,3 @@
+# pfSense Suricata (C_IDS_LAN) 사용자 규칙 — security/pfsense/config.sanitized.xml 의 customrules 를 풀어 적은 것
+# 시험용 User-Agent 로 HTTP 요청이 들어오면 알림 (탐지 경로 확인용)
+alert http any any -> any any (msg:"LAB C HTTP User-Agent Probe"; http.user_agent; content:"lab-c-probe"; nocase; sid:1000001; rev:1; classtype:misc-activity;)
