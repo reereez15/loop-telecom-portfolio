@@ -1,6 +1,6 @@
 """모든 API 응답에 붙이는 보안 헤더.
 
-화면(정적 파일)은 Nginx 가 같은 헤더를 붙인다(infrastructure/docker/compose/local/nginx*.conf, infrastructure/nginx/).
+화면(정적 파일)은 로컬 재현용 Nginx 가 같은 헤더를 붙인다(infrastructure/docker/compose/local/nginx.portfolio.conf, nginx-admin.conf).
 이미 같은 헤더가 있으면 덮어쓰지 않는다(setdefault) — 특정 응답이 일부러 다르게 정한 값을 존중하기 위해.
 """
 from flask import Flask, request

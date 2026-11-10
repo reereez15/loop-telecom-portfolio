@@ -76,7 +76,7 @@ python scripts/scenario_bruteforce.py --base-url https://localhost:8443 --admin-
 
 팀 설정과 달라진 점:
 - `compose.portfolio.yaml`: api 에 자동화 토큰·관리자 허용 목록·Graylog 주소·`LOGIN_WINDOW_MINUTES` 전달, 관리자 전용 입구 `127.0.0.1:8444` 추가, migrate 컨테이너에 시드 폴더 연결.
-- `nginx.conf`·`nginx-admin.conf`: `proxy_set_header Host $http_host` — 포트(`:8443`)까지 넘겨야 Flask 의 같은 출처(Origin) 검사가 통과한다. 팀 설정(`$host`)대로면 **브라우저 로그인이 "허용되지 않은 출처의 요청입니다"(403)** 로 막힌다. 학원망은 443 이라 드러나지 않았다.
+- `nginx.portfolio.conf`(고객 입구, 팀 `nginx.conf` 의 사본)·`nginx-admin.conf`(관리자 입구): `proxy_set_header Host $http_host` — 포트(`:8443`)까지 넘겨야 Flask 의 같은 출처(Origin) 검사가 통과한다. 팀 설정(`$host`)대로면 **브라우저 로그인이 "허용되지 않은 출처의 요청입니다"(403)** 로 막힌다. 학원망은 443 이라 드러나지 않았다. 팀 `nginx.conf` 는 고치지 않고 `compose.portfolio.yaml` 이 사본을 대신 붙인다. 두 파일에는 화면용 보안 헤더도 넣었다.
 
 ## 2. 관제: Graylog 6.1 + n8n 2.40
 
@@ -101,8 +101,9 @@ docker compose -f monitoring/compose/monitoring.compose.yaml --env-file .env up 
    # 규칙 생성: ED-A1 | 계정 브루트포스(앱 로그) (실패 ≥ 5 / 15분, 1분마다 검사)
    ```
    팀 ED-08 은 모의 로그의 `username` 을 세는데, 앱은 이메일 대신 `account_hash` 를 남겨서 앱 로그에는 걸리지 않는다. 이 규칙이 그 빈자리를 채운다.
-5. **n8n 워크플로**: Workflows → Import from File → `monitoring/local/n8n/n8n_경로_실사용URL_적용.json` → Save → **Publish**(2.x 의 활성화).
+5. **n8n 워크플로**: Workflows → Import from File → `monitoring/local/n8n/portfolio/n8n_경로_실사용URL_적용_로컬재현.json` → Save → **Publish**(2.x 의 활성화).
    - n8n **2.40.0 이상** 필요. 워크플로가 `httpRequest 4.5`·`set 3.5` 노드를 써서 1.x 에서는 활성화 단계에서 `Cannot read properties of undefined` 오류가 난다.
+   - 팀 원본(`monitoring/local/n8n/n8n_경로_실사용URL_적용.json`, 김준오)은 그대로 두고 수정본을 쓴다. 바꾼 곳 5개는 [`monitoring/n8n/workflows/portfolio/README.md`](../../monitoring/n8n/workflows/portfolio/README.md).
    - 본인이 고친 것: 앱 API 를 부르는 노드 10개 본문 식의 `}}` 가 n8n 식(`{{ … }}`)을 중간에서 닫던 문제(`} }` 로 띄어 씀)와 꺼져 있던 노드 켜기, `8- 브루트포스 계정잠금` 이 `account_hash` 를 받아 잠그도록 판정·요청 노드 수정.
 6. 앱 로그를 Graylog 로 보내려면 `.env` 에 `GRAYLOG_GELF_HOST=graylog` 를 넣고 1단계 `up -d` 를 다시 실행.
 
@@ -216,7 +217,7 @@ cd infrastructure/docker/compose/local; docker compose -f compose.yaml -f compos
 | 증상 | 원인 | 해결 |
 |---|---|---|
 | `Run infrastructure/tools/prepare-local.py first` | `.env` 없음 | 0단계 실행 |
-| 브라우저 로그인 "허용되지 않은 출처의 요청입니다" | nginx 가 Host 에서 포트를 뺌 | 저장소 최신 `nginx*.conf`(`$http_host`) 확인 후 `docker restart telecom-local-edge-1 telecom-local-admin-edge-1` |
+| 브라우저 로그인 "허용되지 않은 출처의 요청입니다" | nginx 가 Host 에서 포트를 뺌 | `compose.portfolio.yaml` 을 같이 써서 `nginx.portfolio.conf` 가 붙었는지 확인 후 `docker restart telecom-local-edge-1 telecom-local-admin-edge-1` |
 | 로그인 후 바로 로그아웃 | `__Host-` 쿠키는 HTTPS 전용 | 8080 이 아니라 8443 으로 접속 |
 | 관리자 화면 404 | 고객 입구(8443)는 관리자 경로 차단 | 8444 사용 |
 | `failed to execute bake` (`--build` 할 때) | Docker Compose 5.x 의 bake 빌드 오류 | 이미지만 직접 빌드: `cd backend; docker build -t telecom-local-api -f ..\infrastructure\docker\backend\Dockerfile .` → `up -d --no-build api` |

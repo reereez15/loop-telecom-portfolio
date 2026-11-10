@@ -43,25 +43,25 @@
 ### ⑦ 팀 n8n 워크플로의 인시던트 등록 노드 10개가 꺼져 있었다
 - **문제**: Graylog 알림은 n8n 까지 오는데 관리자 화면에 인시던트가 생기지 않았다. 앱을 부르는 노드 10개가 비활성 상태였고, 켜면 `invalid syntax` 오류가 났다.
 - **원인**: 본문 식 `{{ JSON.stringify({… group_key||null}}) }}` 안의 `}}` 가 n8n 식을 중간에서 닫았다. 또 워크플로는 n8n 2.x 노드 버전을 쓰는데 1.x 로 띄우면 활성화가 안 됐다. Graylog 는 URL 허용 목록에 없는 주소로 알림을 보내지 않았다.
-- **해결**: `}}` → `} }` 로 띄어 쓰고 노드를 켬, n8n 2.40.0 고정, 허용 목록 정규식 추가.
+- **해결**: 팀 원본은 그대로 두고 수정본(`monitoring/n8n/workflows/portfolio/`)에서 `}}` → `} }` 로 띄어 쓰고 노드를 켬, n8n 2.40.0 고정, 허용 목록 정규식 추가.
 - **결과**: EX-05 모의 공격 → 인시던트 자동 등록 **54.2초**.
 
 ### ⑧ 브라우저로는 로컬 로그인이 안 됐다
 - **문제**: 스크립트로는 로그인 200 인데, 브라우저에서 같은 계정으로 로그인하면 "허용되지 않은 출처의 요청입니다"(403).
 - **원인**: 내가 만든 로그인 API 는 CSRF 방어로 `Origin` 과 요청 Host 가 같은 출처인지 본다. 로컬 nginx 가 `proxy_set_header Host $host` 로 포트를 빼고 넘겨서 `https://localhost:8443` ≠ `https://localhost` 가 됐다. 스크립트는 `Origin` 을 보내지 않아 그동안 드러나지 않았고, 학원망은 443 이라 문제가 없었다.
-- **해결**: 로컬 nginx 두 파일을 `$http_host` 로 바꿈.
+- **해결**: 팀 `nginx.conf` 는 그대로 두고, 사본 `nginx.portfolio.conf` 와 본인 파일 `nginx-admin.conf` 를 `$http_host` 로 바꿔 `compose.portfolio.yaml` 이 붙이게 함.
 - **결과**: 브라우저 로그인 정상, 캡처 7장 확보. 스크립트만 믿지 말고 실제 화면으로 한 번은 확인해야 한다는 걸 배웠다.
 
 ### ⑨ n8n 잠금 노드가 엉뚱한 값을 보내 400 이 났다
 - **문제**: 탐지는 되는데 계정이 잠기지 않았다. n8n 실행 기록에서 `HTTP 계정 block 요청` 이 400 "입력값을 확인하세요".
 - **원인**: 이 노드는 `판정(잠금)` 바로 뒤가 아니라 `대시보드 POST1`(인시던트 등록) 뒤에 연결돼 있어, `$json` 이 인시던트 등록 응답이었다. 그래서 `account_hash` 가 비어 있었다. 또 `X-Workflow` 이름이 관리자 '자동화 현황' 카드(`8-login-bruteforce`)와 달라 기록이 '없음'으로 보였다.
-- **해결**: 요청 본문이 `$('판정(잠금)').item.json` 을 직접 읽게 바꾸고 `X-Workflow: 8-login-bruteforce` 로 맞춤.
+- **해결**: 수정본에서 요청 본문이 `$('판정(잠금)').item.json` 을 직접 읽게 바꾸고 `X-Workflow: 8-login-bruteforce` 로 맞춤.
 - **결과**: n8n 실행 #14 `"locked": true, "result": "CREATED"`, 자동화 현황 '동작 중 · 계정 잠금 1'.
 
 ### ⑩ 응답에 보안 헤더가 하나도 없었다
 - **문제**: 수업 실습(비밀창고 방어전 5단계)에서 심판이 공통으로 지적한 '첫 화면 보안 헤더'가 이 프로젝트에도 없었다. API·화면 응답 모두 `X-Content-Type-Options`, `X-Frame-Options` 등이 0개.
 - **원인**: 인증·세션·CSRF 같은 앱 안의 방어에만 집중했고, 응답 헤더는 Nginx 가 할 일이라고 생각해 누구도 맡지 않았다.
-- **해결**: Flask 의 모든 API 응답에 보안 헤더 5개와 `Cache-Control: no-store`(`backend/app/core/security_headers.py`), Nginx 화면 응답에 같은 헤더(로컬 `nginx*.conf`, 학원망 템플릿 `host-nginx.conf.example`). 테스트 4개 추가.
+- **해결**: Flask 의 모든 API 응답에 보안 헤더 5개와 `Cache-Control: no-store`(`backend/app/core/security_headers.py`), Nginx 화면 응답에 같은 헤더(본인 파일 `nginx.portfolio.conf`·`nginx-admin.conf`). 팀의 학원망 템플릿 `host-nginx.conf.example` 은 고치지 않고 아래 '팀에 제안할 개선점'에 남김. 테스트 4개 추가.
 - **결과**: 백엔드 테스트 154개 통과. 배운 원칙 그대로 '앱 계층과 앞단(Nginx) 계층을 따로 막는다'.
 
 ### ⑪ Wazuh 경보가 Graylog 규칙에 닿는 길이 저장소에 없었다
@@ -81,7 +81,17 @@
 
 참고 — 발표 당일(11-04) 바뀐 정책: 공개 고객 주소의 관리자 UI·API 를 Nginx 404 로 막고 관리 전용 입구(9443, 팀 PC·VPN)로만 접근 ([팀 PR #63](https://github.com/telecom-carrier-Loop/telecom-security-project/pull/63)). 이 저장소의 로컬 구성도 고객 8443 / 관리자 8444 로 같은 원칙을 따른다.
 
-## 3. 시간이 더 있다면
+## 3. 팀에 제안할 개선점 (팀원 파일이라 직접 고치지 않음)
+
+| 대상 (담당) | 제안 | 근거 |
+|---|---|---|
+| n8n 워크플로 (김준오) | 본문 식 `}}` → `} }`, 인시던트 노드 켜기, 잠금 노드 본문이 `판정(잠금)` 값을 읽게 | ⑦·⑨, [수정본 README](../../monitoring/n8n/workflows/portfolio/README.md) |
+| Graylog ED-08 (김준오) | 앱 로그 형식(`event_type:auth.login.failed`, `account_hash`)도 세도록 | ②, `scripts/graylog_add_account_bruteforce.py` |
+| 학원망 nginx 템플릿 `infrastructure/nginx/host-nginx.conf.example` (문경구) | 화면 응답에 `X-Content-Type-Options`·`X-Frame-Options`·`Referrer-Policy`·`Permissions-Policy` | ⑩. API 응답은 이미 Flask 가 붙임 |
+| 로컬 `nginx.conf` (팀) | 8443 처럼 443 이 아닌 포트로 띄울 때는 `Host $http_host` | ⑧ |
+| Wazuh → Graylog (김준오) | 파싱 파이프라인·`syslog_output` 설정을 파일로 남기기 | ⑪ |
+
+## 4. 시간이 더 있다면
 
 - n8n 워크플로 `신규 API - 계정 잠금 해제(관리자)` 가 `/api/admin/customers/1/unlock` 처럼 **고객 번호 1 을 고정**으로 부른다. 설계상 해제는 사람만 하므로 이 노드를 지우고 관리자 콘솔 해제만 남긴다.
 - Discord 알림 문구가 `ED-A1` 을 몰라 '⚠️ 보안 이벤트' 로만 나온다 → `메시지` 노드에 앱 이벤트 이름표 추가.
@@ -91,7 +101,7 @@
 - Graylog `ED-A1` 이 같은 실패를 15분 동안 매분 다시 이벤트로 만든다(알림은 유예로 1번) → 이벤트 저장을 줄이려면 검사 창을 앱 제한 창과 분리.
 - Wazuh 를 로컬에서 실제로 띄워 logtest 결과를 남기고, 매니저 `ossec.conf` 를 팀에서 받아 저장소에 넣는다.
 
-## 4. 느낀 점 (초안 — 본인 말로 고칠 것)
+## 5. 느낀 점 (초안 — 본인 말로 고칠 것)
 
 - 기능을 만드는 것과 남이 그대로 다시 세울 수 있게 만드는 것은 다른 일이었다. 팀 저장소만으로는 내 PC 에서도 관제까지 다시 띄울 수 없었고, 다시 세우는 과정에서만 보이는 문제가 5개나 나왔다.
 - 보안 프로젝트에서 가장 먼저 새는 곳은 코드가 아니라 설정 파일이었다. 워크플로 한 번 내보낸 것이 토큰 노출로 이어졌다.

@@ -96,14 +96,14 @@
 | 팀 저장소 기록에서 웹훅 1·토큰 3 제거 후 가져오기, 브랜치 정리(main 만) | `scripts/sanitize_repo.py`, `scripts/check_secrets.py` | `check_secrets.py --history` → 비밀값 없음 |
 | pfSense 백업 비밀값 21개 제거, 구성 설명 | `scripts/sanitize_pfsense.py`, `security/pfsense/` | 제거 후 잔여 검사 0건 |
 | 로컬 관제 스택 정의, n8n 2.40 고정 | `monitoring/compose/monitoring.compose.yaml`, `.env.example` | Graylog·n8n 기동 |
-| n8n 본문 식 `}}` 오류 수정, 인시던트 노드 10개 켬 | `monitoring/n8n/workflows/n8n_경로_실사용URL_적용.json` | EX-05 → 인시던트 등록 54.2초 |
+| n8n 본문 식 `}}` 오류 수정, 인시던트 노드 10개 켬 (팀 원본은 그대로, 수정본 따로) | `monitoring/n8n/workflows/portfolio/` | EX-05 → 인시던트 등록 54.2초 |
 | 앱 로그용 브루트포스 규칙 ED-A1 + n8n 잠금 노드 수정 | `scripts/graylog_add_account_bruteforce.py`, 같은 워크플로 | S-A1 전 구간 7/7, 39.8초 |
 | 로그인 제한 값 환경변수화, 시나리오 대기 옵션 | `backend/app/config.py`, `scripts/scenario_bruteforce.py` | HTTP 8/8, 테스트 150개 |
 | 테스트가 개인 `.env` 를 읽지 않게 | `backend/app/config.py`, `backend/tests/conftest.py` | 이전 실패 1건 해결, 150 passed |
-| 로컬 nginx Host 헤더 수정(브라우저 로그인 403) | `infrastructure/docker/compose/local/nginx*.conf` | 브라우저 로그인 200 |
+| 로컬 nginx Host 헤더 수정(브라우저 로그인 403) (팀 `nginx.conf` 는 그대로) | `nginx.portfolio.conf`, `nginx-admin.conf`, `compose.portfolio.yaml` | 브라우저 로그인 200 |
 | 전 구간·EX-05 재현 스크립트, 캡처 7장 | `scripts/scenario_bruteforce_e2e.py`, `scripts/scenario_ex05_sqli.py`, `docs/portfolio/evidence/` | [02 시나리오](02_SCENARIOS.md) |
 | Wazuh 로컬 실행용 덧씌우기(포트 127.0.0.1) | `monitoring/wazuh/compose.localhost.yaml` | ⬜ 실행 결과 미기록 |
-| 보안 응답 헤더 추가(수업 노트 대조) | `backend/app/core/security_headers.py`, `nginx*.conf`, `host-nginx.conf.example` | 테스트 4개 추가, 154 passed |
+| 보안 응답 헤더 추가(수업 노트 대조) | `backend/app/core/security_headers.py`, `nginx.portfolio.conf`, `nginx-admin.conf` (학원망 템플릿은 제안만) | 테스트 4개 추가, 154 passed |
 | Wazuh → Graylog 파싱 규칙·연동 순서 | `monitoring/graylog/pipelines/wazuh_alert_parse.rule`, 설치 가이드 3-1 | ⬜ 미검증 |
 
 ## 7. 회의록·캡처

@@ -42,7 +42,7 @@ Flask  계정 잠금 + 세션 끊기 + 감사 기록 ──▶ 고객: 올바른
 | 공격 | 같은 계정에 틀린 비밀번호 6회 | `POST /api/auth/login` |
 | 로그 수집 | 실패마다 `auth.login.failed`, 한도 초과 시 `auth.rate_limited` (이메일 원문 없음) | `backend/app/auth/service.py`, `core/logging.py`, `core/gelf.py` |
 | 탐지 | 같은 `account_hash` 실패 ≥ 5 (15분) | Graylog `ED-A1` ← `scripts/graylog_add_account_bruteforce.py` |
-| 자동 대응 | n8n `8- 브루트포스 계정잠금` → 계정 잠금 API | `monitoring/n8n/workflows/n8n_경로_실사용URL_적용.json`, `backend/app/incidents/protection_routes.py` |
+| 자동 대응 | n8n `8- 브루트포스 계정잠금` → 계정 잠금 API | `monitoring/n8n/workflows/portfolio/n8n_경로_실사용URL_적용_로컬재현.json`(팀 원본의 수정본), `backend/app/incidents/protection_routes.py` |
 | 복구 | 관리자 콘솔에서 잠금 해제 → 정상 로그인 | `POST /api/admin/customers/{id}/unlock` |
 
 ### 기대 결과와 실측 결과 (전 구간, Graylog·n8n 경유)

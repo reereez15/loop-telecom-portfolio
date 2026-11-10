@@ -43,7 +43,9 @@ def fix(value, stats):
 
 
 def main():
-    for src_dir, dst in ((ROOT / "monitoring/graylog", "graylog"), (ROOT / "monitoring/n8n/workflows", "n8n")):
+    # n8n/workflows/*.json = 팀 원본(김준오, 손대지 않음), n8n/workflows/portfolio/*.json = 로컬 재현용 수정본(김준식)
+    for src_dir, dst in ((ROOT / "monitoring/graylog", "graylog"), (ROOT / "monitoring/n8n/workflows", "n8n"),
+                         (ROOT / "monitoring/n8n/workflows/portfolio", "n8n/portfolio")):
         out = ROOT / "monitoring/local" / dst
         out.mkdir(parents=True, exist_ok=True)
         for f in sorted(src_dir.glob("*.json")):

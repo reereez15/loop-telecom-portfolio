@@ -19,7 +19,7 @@
 | 브루트포스 → Graylog 탐지 → n8n 자동 잠금 → 관리자 해제 | **7/7, 탐지·잠금 39.8초** | [시나리오 S-A1](docs/portfolio/02_SCENARIOS.md), 캡처 7장 |
 | 같은 시나리오, 앱 API 단계별 (HTTPS) | **8/8** | [evidence/S-A1_http.txt](docs/portfolio/evidence/S-A1_http.txt) |
 | EX-05 SQL Injection 모의 공격 → 인시던트 자동 등록 | **54.2초** | [evidence/EX-05_e2e.txt](docs/portfolio/evidence/EX-05_e2e.txt) |
-| 다시 세우다 찾아 고친 문제 | 5개 (HTTP 재현 6/8, 앱 로그용 탐지 규칙 없음, n8n 인시던트 노드 꺼짐·식 오류, 브라우저 로그인 403, n8n 잠금 노드 400) | [회고 ②·⑥~⑨](docs/portfolio/04_RETROSPECTIVE.md) |
+| 다시 세우다 찾은 문제 | 5개 (HTTP 재현 6/8, 앱 로그용 탐지 규칙 없음, n8n 인시던트 노드 꺼짐·식 오류, 브라우저 로그인 403, n8n 잠금 노드 400). 팀원 파일은 원본 그대로 두고 수정은 본인 파일(`*.portfolio.*`, `workflows/portfolio/`)에만 | [회고 ②·⑥~⑨](docs/portfolio/04_RETROSPECTIVE.md) |
 | 저장소 비밀값 검사 | 없음 | `python scripts/check_secrets.py --history` |
 
 ![자동 잠금된 계정](docs/portfolio/evidence/screenshots/S-A1_04_관리자_계정잠금목록.png)
@@ -73,7 +73,9 @@ python ..\scripts\scenario_bruteforce.py # 기대: 8/8 통과
 |---|---|---|
 | Graylog 콘텐츠 팩 (탐지 규칙 19 + n8n 알림 10) | `monitoring/graylog/Graylog_Wazuh분할.json` (로컬 주소판: `monitoring/local/graylog/`) | 김준오 |
 | Graylog 앱 로그용 규칙 ED-A1 | `scripts/graylog_add_account_bruteforce.py` | 김준식 |
-| n8n 워크플로 | `monitoring/n8n/workflows/n8n_경로_실사용URL_적용.json` (로컬판: `monitoring/local/n8n/`) | 김준오 작성, 김준식 수정(식 오류·잠금 노드) |
+| n8n 워크플로 (팀 원본) | `monitoring/n8n/workflows/n8n_경로_실사용URL_적용.json` — 수정하지 않음 | 김준오 |
+| n8n 워크플로 (로컬 재현 수정본) | `monitoring/n8n/workflows/portfolio/n8n_경로_실사용URL_적용_로컬재현.json` (바꾼 곳: 같은 폴더 README, 로컬판: `monitoring/local/n8n/portfolio/`) | 김준오 원본을 김준식이 수정 |
+| 고객 입구 nginx (로컬 재현용) | `infrastructure/docker/compose/local/nginx.portfolio.conf` (팀 `nginx.conf` 는 그대로) | 김준식 |
 | Wazuh 규칙·디코더 | `monitoring/wazuh/local_rules.xml`, `local_decoder.xml` | 김준오 |
 | Wazuh 로컬 실행 덧씌우기 | `monitoring/wazuh/compose.localhost.yaml` | 김준식 |
 | pfSense 설정 백업(비밀값 제거)·설명 | `security/pfsense/config.sanitized.xml`, `README.md` | 정동석 구성, 김준식 정리 |

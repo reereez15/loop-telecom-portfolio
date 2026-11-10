@@ -4,7 +4,12 @@
 # 1) api 에 자동화 토큰·관리자 허용 목록·Graylog 주소를 넘긴다 (팀 파일에는 DB 값만 넘어감)
 # 2) 관리자 화면 전용 입구(127.0.0.1:8444)를 따로 둔다. 8443(고객용)은 팀 설정대로 /admin·/api/admin 을 막는다.
 # 3) migrate 컨테이너에 시드 폴더를 붙여 'flask seed' 를 실행할 수 있게 한다 (팀 이미지는 seed 폴더를 복사하지 않음)
+# 4) 고객 입구(edge)에 팀 nginx.conf 대신 nginx.portfolio.conf 를 붙인다 (Host 포트 전달·화면 보안 헤더. 팀 파일은 그대로)
 services:
+  edge:
+    volumes:   # 같은 target 이면 팀 compose.yaml 의 마운트를 대신한다
+      - {type: bind, source: ./nginx.portfolio.conf, target: /etc/nginx/conf.d/default.conf, read_only: true}
+
   api:
     environment:
       INCIDENT_API_TOKEN: ${INCIDENT_API_TOKEN:?run prepare-local.py}
