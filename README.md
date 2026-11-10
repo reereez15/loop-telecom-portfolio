@@ -11,6 +11,58 @@
 
 > 팀 공통 결과(웹 2노드 장애 시험 HTTP 200 224건, MySQL 복원 26개 테이블 등)는 인프라 담당 문경구 님의 작업입니다. 원래 팀 README는 [docs/TEAM_README.md](docs/TEAM_README.md)에 그대로 두었습니다.
 
+## 처음부터 따라하기 (새 PC, 약 20분)
+
+**필요한 것**: Windows 11 · [Docker Desktop](https://www.docker.com/products/docker-desktop/) (켜 둔 상태) · Git · Python 3.12 이상 · 메모리 16GB
+모든 명령은 **PowerShell** 에서, 1번 이후로는 **저장소 폴더 안에서** 실행합니다. 각 단계의 `→` 뒤가 나와야 하는 결과입니다.
+
+**1. 내려받고 비밀값 만들기** (1분)
+```powershell
+git clone https://github.com/reereez15/loop-telecom-portfolio.git
+cd loop-telecom-portfolio
+pip install requests
+python infrastructure/tools/prepare-local.py     # → .env 와 인증서 생성
+python scripts/setup_portfolio_env.py --demo     # → Graylog 비밀번호 등 채움 (--demo: 시연용 로그인 제한 1분)
+```
+
+**2. 웹·API·DB 띄우기** (5분, 처음엔 이미지 내려받기로 더 걸림)
+```powershell
+cd infrastructure/docker/compose/local
+docker compose -f compose.yaml -f compose.portfolio.yaml --env-file ../../../../.env up -d mysql
+docker compose -f compose.yaml -f compose.portfolio.yaml --env-file ../../../../.env --profile ops run --rm migrate
+docker compose -f compose.yaml -f compose.portfolio.yaml --env-file ../../../../.env --profile ops run --rm migrate flask --app wsgi:app seed
+docker compose -f compose.yaml -f compose.portfolio.yaml --env-file ../../../../.env --profile app up -d --build
+cd ../../../..
+curl.exe -k https://localhost:8443/api/health/ready   # → {"data":{"database":"ok","status":"ok"} …
+```
+`failed to execute bake` 가 나오면 → [설치 가이드 '자주 막히는 곳'](docs/portfolio/01_INSTALL.md#자주-막히는-곳)
+
+**3. 관제(Graylog·n8n) 띄우고 설정하기** (5분)
+```powershell
+python scripts/localize_monitoring.py
+docker compose -f monitoring/compose/monitoring.compose.yaml --env-file .env up -d
+python scripts/setup_monitoring.py               # → 1)~7) 이 모두 '만듦/설치함/됨' (Graylog 가 뜰 때까지 기다림)
+```
+
+**4. 시나리오 재현** (각 1~2분)
+```powershell
+python scripts/scenario_ex05_sqli.py
+# → 2~4. Graylog 탐지 → n8n → 인시던트 등록: #N 'ED-EX-05 | SQL Injection 의심' high OPEN
+python scripts/scenario_bruteforce_e2e.py --register --victim s-a1-01@test.local --wait-minutes 1 --graylog-password-file .secrets/graylog-admin.txt
+# → 결과: 7/7 통과   (다시 할 때는 s-a1-02 처럼 이메일을 바꿈)
+```
+
+**5. 화면으로 보기**
+| 화면 | 주소 | 계정 |
+|---|---|---|
+| 고객 포털 | https://localhost:8443 | `alice@test.local` / `Test1234!` |
+| 관리자 콘솔 | https://localhost:8444/admin | `admin@test.local` / `Test1234!` |
+| Graylog | http://localhost:9000 | `admin` / `.secrets/graylog-admin.txt` 안의 비밀번호 |
+| n8n | http://localhost:5678 | `.secrets/n8n-owner.txt` 안의 이메일·비밀번호 |
+
+브라우저의 인증서 경고는 내 PC 에서 만든 시험용 인증서라서 나옵니다('고급 → 계속'). 끄기: `docker compose -f monitoring/compose/monitoring.compose.yaml down` 후 2번 폴더에서 `… --profile app down`.
+각 단계의 설명·직접 설정하는 방법·Wazuh·pfSense 는 [설치 가이드](docs/portfolio/01_INSTALL.md)에 있습니다.
+
 ## 혼자 다시 세워 확인한 결과 (2026-11-10, 본인 노트북)
 
 | 확인 | 결과 | 근거 |

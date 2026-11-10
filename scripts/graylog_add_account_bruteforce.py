@@ -37,33 +37,41 @@ def main():
     g.auth = (a.user, pw)
     g.headers.update({"X-Requested-By": "cli", "Accept": "application/json"})
     api = a.url.rstrip("/") + "/api"
+    ensure_account_bruteforce(g, api, a.threshold, a.window_minutes, a.webhook)
+
+
+def ensure_account_bruteforce(g, api, threshold=5, window_minutes=15,
+                              webhook="http://n8n:5678/webhook/login-bruteforce"):
+    """g: 로그인된 requests.Session, api: http://…:9000/api. 이미 있으면 갱신한다(여러 번 실행해도 안전)."""
 
     notification = {
         "title": NOTIF_TITLE,
         "description": "Graylog → n8n 8- 브루트포스 계정잠금. 계정은 이메일 대신 account_hash 로 넘긴다.",
         "config": {
             "type": "http-notification-v2",
-            "url": a.webhook, "method": "POST", "content_type": "JSON", "time_zone": "Asia/Seoul",
+            "url": webhook, "method": "POST", "content_type": "JSON", "time_zone": "Asia/Seoul",
             "basic_auth": None, "api_key_as_header": False, "api_key": "", "api_secret": None,
             "skip_tls_verification": False, "headers": "",
             "body_template": (
                 '{\n  "event_definition": "${event_definition_title}",\n'
                 '  "alerts": [\n    {\n      "account_hash": "${event.key}",\n'
-                '      "count": "' + str(a.threshold) + '+",\n      "student": "security-team"\n    }\n  ]\n}'
+                '      "count": "' + str(threshold) + '+",\n      "student": "security-team"\n    }\n  ]\n}'
             ),
         },
     }
     nots = g.get(f"{api}/events/notifications", params={"per_page": 200}).json()["notifications"]
     old = next((n for n in nots if n["title"] == NOTIF_TITLE), None)
+    if old:
+        notification["id"] = old["id"]  # 갱신(PUT)할 때는 본문에도 id 가 있어야 400 이 나지 않는다
     r = g.put(f"{api}/events/notifications/{old['id']}", json=notification) if old else \
         g.post(f"{api}/events/notifications", json=notification)
     r.raise_for_status()
     notif_id = r.json()["id"]
-    print(f"알림 {'갱신' if old else '생성'}: {NOTIF_TITLE} → {a.webhook}")
+    print(f"알림 {'갱신' if old else '생성'}: {NOTIF_TITLE} → {webhook}")
 
     definition = {
         "title": TITLE,
-        "description": f"같은 account_hash 로그인 실패 {a.threshold}회 이상 / {a.window_minutes}분. "
+        "description": f"같은 account_hash 로그인 실패 {threshold}회 이상 / {window_minutes}분. "
                        "앱 auth.login.failed 이벤트 기준(이메일 원문 없음). MITRE ATT&CK T1110.001 Password Guessing.",
         "priority": 2, "alert": True,
         "config": {
@@ -73,15 +81,15 @@ def main():
             "group_by": ["account_hash"],
             "series": [{"type": "count", "id": "count-", "field": None}],
             "conditions": {"expression": {"expr": ">=", "left": {"expr": "number-ref", "ref": "count-"},
-                                          "right": {"expr": "number", "value": a.threshold}}},
-            "search_within_ms": a.window_minutes * 60_000,
+                                          "right": {"expr": "number", "value": threshold}}},
+            "search_within_ms": window_minutes * 60_000,
             "execute_every_ms": 60_000,
             "use_cron_scheduling": False, "event_limit": 100,
         },
         "field_spec": {"account_hash": {"data_type": "string", "providers": [
             {"type": "template-v1", "template": "${source.account_hash}", "require_values": False}]}},
         "key_spec": ["account_hash"],
-        "notification_settings": {"grace_period_ms": a.window_minutes * 60_000, "backlog_size": 1},
+        "notification_settings": {"grace_period_ms": window_minutes * 60_000, "backlog_size": 1},
         "notifications": [{"notification_id": notif_id, "notification_parameters": None}],
         "storage": [{"type": "persist-to-streams-v1", "streams": ["000000000000000000000002"]}],
     }
@@ -94,7 +102,8 @@ def main():
         r = g.post(f"{api}/events/definitions", json=definition, params={"schedule": "true"})
     if r.status_code >= 300:
         sys.exit(f"규칙 저장 실패 {r.status_code}: {r.text[:300]}")
-    print(f"규칙 {'갱신' if old else '생성'}: {TITLE} (실패 ≥ {a.threshold} / {a.window_minutes}분, 1분마다 검사)")
+    print(f"규칙 {'갱신' if old else '생성'}: {TITLE} (실패 ≥ {threshold} / {window_minutes}분, 1분마다 검사)")
+
 
 
 if __name__ == "__main__":

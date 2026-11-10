@@ -11,6 +11,9 @@
 | 3 | Wazuh | PC2 Docker | 공식 wazuh-docker single-node | ⬜ 명령·덧씌우기 파일까지 준비, 실행 결과 미기록 |
 | 4 | pfSense | PC3 VM | VirtualBox VM (선택) | ⬜ 학원 설정 백업(비밀값 제거)과 구성 설명만 |
 
+> **빠르게 따라 하려면 [README '처음부터 따라하기'](../../README.md#처음부터-따라하기-새-pc-약-20분) 5단계만 보면 된다.** 이 문서는 각 단계의 설명과 직접 설정하는 방법이다.
+> 2026-11-11 에 빈 Graylog·n8n 에서 `setup_monitoring.py` 한 번으로 설정 → EX-05 등록·S-A1 7/7 까지 확인했다.
+
 > 2026-11-10 에 처음부터 따라 하며 막힌 곳 5개를 고쳤다: 브라우저 로그인 403(nginx 가 포트를 뺌), 계정 브루트포스 탐지 규칙 없음, n8n 잠금 노드 요청 본문 오류, Graylog URL 허용 목록, n8n 버전. 아래 단계에 모두 반영돼 있다.
 
 ## 0. 준비
@@ -18,7 +21,9 @@
 ```powershell
 git clone https://github.com/reereez15/loop-telecom-portfolio.git
 cd loop-telecom-portfolio
-python infrastructure/tools/prepare-local.py   # .env 와 .secrets/tls 를 무작위 값으로 생성 (둘 다 git 제외)
+pip install requests
+python infrastructure/tools/prepare-local.py   # .env 와 .secrets/tls 를 무작위 값으로 생성 (둘 다 git 제외, 팀 스크립트)
+python scripts/setup_portfolio_env.py --demo   # 아래 표의 Graylog 칸을 채움 (--demo 는 LOGIN_WINDOW_MINUTES=1)
 ```
 
 **확인 (Docker 없이)**
@@ -29,7 +34,7 @@ python ..\scripts\scenario_bruteforce.py  # 결과: 8/8 통과
 deactivate; cd ..
 ```
 
-`.env` 에서 직접 채울 값:
+`setup_portfolio_env.py` 가 채우는 값 (직접 채우려면 이 표대로):
 
 | 변수 | 넣을 값 |
 |---|---|
@@ -41,7 +46,7 @@ deactivate; cd ..
 | `LOGIN_WINDOW_MINUTES` | 기본 `15`. 시연에서 복구 단계를 바로 보려면 `1` |
 | `DISCORD_WEBHOOK_URL` | 본인 Discord 테스트 채널 웹훅 (없으면 비워 둠 — 알림 노드만 실패) |
 
-hosts 파일(관리자 권한 메모장으로 `C:\Windows\System32\drivers\etc\hosts`)에 추가:
+(선택) `portal.telecom.test` 같은 이름으로 접속하려면 hosts 파일(관리자 권한 메모장으로 `C:\Windows\System32\drivers\etc\hosts`)에 추가. `https://localhost:8443`·`https://localhost:8444` 로도 된다:
 
 ```
 127.0.0.1 portal.telecom.test manage1.telecom.test
@@ -83,6 +88,7 @@ python scripts/scenario_bruteforce.py --base-url https://localhost:8443 --admin-
 ```powershell
 python scripts/localize_monitoring.py      # 학원망 주소 → 로컬 주소, 비밀값 자리 → 환경변수 (monitoring/local/ 에 사본 생성)
 docker compose -f monitoring/compose/monitoring.compose.yaml --env-file .env up -d
+python scripts/setup_monitoring.py         # 아래 1~5 를 자동으로 (여러 번 실행해도 안전)
 ```
 
 | 접속 | 주소 | 비고 |
@@ -91,7 +97,7 @@ docker compose -f monitoring/compose/monitoring.compose.yaml --env-file .env up 
 | GELF 입력 | UDP `127.0.0.1:12201` | 앱·시험 스크립트가 로그를 보내는 곳 |
 | n8n | http://localhost:5678 | 처음 접속 시 소유자 계정 생성 (이메일·비밀번호는 `.secrets/n8n-owner.txt` 에 적어 둠, git 제외) |
 
-기본 설정 (순서대로):
+직접 설정하려면 (= `setup_monitoring.py` 가 하는 일, 순서대로):
 1. **Graylog 입력**: System → Inputs → `GELF UDP` → Launch, Bind address `0.0.0.0`, Port `12201`.
 2. **콘텐츠 팩**: System → Content Packs → Upload → `monitoring/local/graylog/Graylog_Wazuh분할.json` → Install. (팀 탐지 규칙 19개 + n8n 알림 10개. 알림 주소는 `http://n8n:5678/webhook/...` 로 바뀌어 있음)
 3. **URL 허용 목록**: System → Configurations → URL Whitelist 에 정규식 `^http://n8n:5678/webhook/.*$` 추가. 없으면 Graylog 로그에 `URL ... is not whitelisted` 가 남고 n8n 이 호출되지 않는다.

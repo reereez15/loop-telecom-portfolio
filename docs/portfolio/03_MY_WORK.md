@@ -105,6 +105,7 @@
 | Wazuh 로컬 실행용 덧씌우기(포트 127.0.0.1) | `monitoring/wazuh/compose.localhost.yaml` | ⬜ 실행 결과 미기록 |
 | 보안 응답 헤더 추가(수업 노트 대조) | `backend/app/core/security_headers.py`, `nginx.portfolio.conf`, `nginx-admin.conf` (학원망 템플릿은 제안만) | 테스트 4개 추가, 154 passed |
 | Wazuh → Graylog 파싱 규칙·연동 순서 | `monitoring/graylog/pipelines/wazuh_alert_parse.rule`, 설치 가이드 3-1 | ⬜ 미검증 |
+| 새 PC 설치 자동화: `.env` 관제 칸 채우기, Graylog·n8n 설정 7가지를 명령 한 줄로 | `scripts/setup_portfolio_env.py`, `scripts/setup_monitoring.py`, README '처음부터 따라하기' | 11-11 빈 Graylog·n8n 에서 설정 → EX-05 등록·S-A1 7/7, 두 번 실행해도 안전 |
 
 ## 7. 회의록·캡처
 
