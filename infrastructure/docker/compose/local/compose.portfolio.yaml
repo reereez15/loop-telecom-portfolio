@@ -14,6 +14,8 @@ services:
       GRAYLOG_GELF_PORT: ${GRAYLOG_GELF_PORT:-12201}
       KAKAOPAY_SECRET_KEY: ${KAKAOPAY_SECRET_KEY:-}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://portal.telecom.test:8443}
+      # 로그인 실패 제한 창(분). 시나리오 재현을 짧게 하려면 .env 에 LOGIN_WINDOW_MINUTES=1
+      LOGIN_WINDOW_MINUTES: ${LOGIN_WINDOW_MINUTES:-15}
 
   admin-edge:
     profiles: [app]

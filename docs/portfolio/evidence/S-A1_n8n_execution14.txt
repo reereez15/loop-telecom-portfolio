@@ -1,0 +1,13 @@
+[8- 브루트포스 계정잠금] status=success error=None
+    out: {"headers": {"content-type": "application/json; charset=utf-8", "content-length": "275", "host": "n8n:5678", "connection": "Keep-Alive", "accept-encoding": "gzip", "user-agent": "okhttp/4.12.0"}, "params": {}, "query": {}, "body": {"event_definition": "ED-A1 | 계정 브루트포스(앱 로그)", "alerts": [{"account_h
+[판정(잠금)] status=success error=None
+    out: {"account_hash": "58d2333c7b76626d746055fa5ce9027409e02c5a73928ec7f0c9b65fa915b968", "reason": "브루트포스 자동 잠금: 5+회 로그인 실패", "fail_count": null, "src_ip": "0.0.0.0", "student": "security-team", "severity": "High", "source": "login-guard", "event_definition": "ED-A1 | 계정 브루트포스(앱 로그)", "event_type": "aut
+[대시보드 POST1] status=success error=None
+    out: {"data": {"deduplicated": false, "incident_id": 11, "status": "OPEN"}, "request_id": "44350a3d91364487afb40051122dc254", "success": true}
+[HTTP 계정 block 요청] status=success error=None
+    out: {"data": {"locked": true, "result": "CREATED"}, "request_id": "267f5b83113c46d5a5860a4b1225e03f", "success": true}
+[메시지] status=success error=None
+    out: {"username": "Security Alert Bot", "allowed_mentions": {"parse": []}, "embeds": [{"title": "[MEDIUM] ⚠️ 보안 이벤트 | ⚠️ 보안 이벤트", "description": "⚠️ 보안 이벤트 관련 보안 이벤트가 탐지되었습니다.", "color": 16705372, "fields": [{"name": "📡 탐지 시스템", "value": "⚠️ 보안 이벤트", "inline": true}, {"name": "🚨 심각도", "value": "Medium", 
+[디스코드] status=error error=URL parameter cannot be empty
+    desc: None
+    out: None

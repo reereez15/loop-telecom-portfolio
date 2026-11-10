@@ -11,6 +11,19 @@
 
 > 팀 공통 결과(웹 2노드 장애 시험 HTTP 200 224건, MySQL 복원 26개 테이블 등)는 인프라 담당 문경구 님의 작업입니다. 원래 팀 README는 [docs/TEAM_README.md](docs/TEAM_README.md)에 그대로 두었습니다.
 
+## 혼자 다시 세워 확인한 결과 (2026-11-10, 본인 노트북)
+
+| 확인 | 결과 | 근거 |
+|---|---|---|
+| 백엔드 테스트 | **150개 통과** | `cd backend; python -m pytest -q` |
+| 브루트포스 → Graylog 탐지 → n8n 자동 잠금 → 관리자 해제 | **7/7, 탐지·잠금 39.8초** | [시나리오 S-A1](docs/portfolio/02_SCENARIOS.md), 캡처 7장 |
+| 같은 시나리오, 앱 API 단계별 (HTTPS) | **8/8** | [evidence/S-A1_http.txt](docs/portfolio/evidence/S-A1_http.txt) |
+| EX-05 SQL Injection 모의 공격 → 인시던트 자동 등록 | **54.2초** | [evidence/EX-05_e2e.txt](docs/portfolio/evidence/EX-05_e2e.txt) |
+| 다시 세우다 찾아 고친 문제 | 5개 (HTTP 재현 6/8, 앱 로그용 탐지 규칙 없음, n8n 인시던트 노드 꺼짐·식 오류, 브라우저 로그인 403, n8n 잠금 노드 400) | [회고 ②·⑥~⑨](docs/portfolio/04_RETROSPECTIVE.md) |
+| 저장소 비밀값 검사 | 없음 | `python scripts/check_secrets.py --history` |
+
+![자동 잠금된 계정](docs/portfolio/evidence/screenshots/S-A1_04_관리자_계정잠금목록.png)
+
 ## 바로 가기
 
 | 문서 | 내용 |
@@ -46,12 +59,28 @@ python ..\scripts\scenario_bruteforce.py # 기대: 8/8 통과
 
 | 바꿀 것 | 위치 | 기본값 |
 |---|---|---|
-| 로그인 실패 제한 | `backend/app/config.py` `LOGIN_MAX_PER_ACCOUNT` / `LOGIN_MAX_PER_IP` / `LOGIN_WINDOW_MINUTES` | 5 / 20 / 15분 |
+| 로그인 실패 제한 | `.env` `LOGIN_MAX_PER_ACCOUNT` / `LOGIN_MAX_PER_IP` / `LOGIN_WINDOW_MINUTES` (기본값은 `backend/app/config.py`) | 5 / 20 / 15분 |
+| Graylog 계정 브루트포스 기준 | `python scripts/graylog_add_account_bruteforce.py --threshold N --window-minutes M` | 5회 / 15분 |
 | 자동 로그아웃 | `config.py` `SESSION_IDLE_MINUTES` / `SESSION_ABSOLUTE_HOURS` | 30분 / 8시간 |
 | 자동 IP 차단 시간 | `.env` `IP_BLOCK_DEFAULT_MINUTES` | 60분 |
 | 관리자 허용 목록 | `.env` `ADMIN_ALLOWLIST` | `admin@test.local` |
 
 바꾼 뒤 `python -m pytest -q tests/test_auth.py tests/test_protection.py`로 확인합니다.
+
+## 설정 파일 위치
+
+| 구성 | 파일 | 작성 |
+|---|---|---|
+| Graylog 콘텐츠 팩 (탐지 규칙 19 + n8n 알림 10) | `monitoring/graylog/Graylog_Wazuh분할.json` (로컬 주소판: `monitoring/local/graylog/`) | 김준오 |
+| Graylog 앱 로그용 규칙 ED-A1 | `scripts/graylog_add_account_bruteforce.py` | 김준식 |
+| n8n 워크플로 | `monitoring/n8n/workflows/n8n_경로_실사용URL_적용.json` (로컬판: `monitoring/local/n8n/`) | 김준오 작성, 김준식 수정(식 오류·잠금 노드) |
+| Wazuh 규칙·디코더 | `monitoring/wazuh/local_rules.xml`, `local_decoder.xml` | 김준오 |
+| Wazuh 로컬 실행 덧씌우기 | `monitoring/wazuh/compose.localhost.yaml` | 김준식 |
+| pfSense 설정 백업(비밀값 제거)·설명 | `security/pfsense/config.sanitized.xml`, `README.md` | 정동석 구성, 김준식 정리 |
+| Suricata 사용자 규칙 | `security/suricata/rules/custom.rules` | 정동석 |
+| 관제 스택 실행 정의 | `monitoring/compose/monitoring.compose.yaml` | 김준식 |
+| 웹·DB 로컬 실행 | `infrastructure/docker/compose/local/` (`compose.portfolio.yaml` 은 김준식 추가) | 팀 |
+| k3s·MySQL 복제 (학원망) | `infrastructure/`, `docs/runbooks/` | 문경구 |
 
 ## 민감정보 처리
 

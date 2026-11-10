@@ -1,0 +1,17 @@
+# 공식 wazuh-docker(v4.9.2) single-node 덧씌우기 — 김준식
+# 공식 파일은 포트를 0.0.0.0 에 열고 기본 비밀번호를 쓴다. 노트북 재현에서는 내 PC 안(127.0.0.1)에서만 열리게 한다.
+#   cd ..\wazuh-docker\single-node
+#   docker compose -f docker-compose.yml -f ..\..\loop-telecom-portfolio\monitoring\wazuh\compose.localhost.yaml up -d
+# (!override = 공식 파일의 ports 목록을 합치지 않고 바꾼다. Docker Compose 2.24 이상)
+services:
+  wazuh.manager:
+    ports: !override
+      - "127.0.0.1:1514:1514"     # 에이전트 이벤트
+      - "127.0.0.1:1515:1515"     # 에이전트 등록
+      - "127.0.0.1:55000:55000"   # Wazuh API
+  wazuh.indexer:
+    ports: !override
+      - "127.0.0.1:9200:9200"
+  wazuh.dashboard:
+    ports: !override
+      - "127.0.0.1:443:5601"      # https://localhost

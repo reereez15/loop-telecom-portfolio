@@ -1,5 +1,10 @@
-import pytest
-from flask.testing import FlaskClient
+import os
+
+# app 을 import 하기 전에: 개인 .env 값이 테스트 기대값을 바꾸지 않게 한다
+os.environ["TELECOM_SKIP_DOTENV"] = "1"
+
+import pytest  # noqa: E402
+from flask.testing import FlaskClient  # noqa: E402
 
 from app import create_app
 from app.cli import load_seed_module

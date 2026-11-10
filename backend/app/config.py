@@ -14,8 +14,10 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND_DIR.parent
 
 # 저장소 루트 .env (팀 공통 템플릿 기준) → backend/.env 순서로 읽는다. 이미 있는 환경변수는 덮어쓰지 않음.
-load_dotenv(REPO_ROOT / ".env")
-load_dotenv(BACKEND_DIR / ".env")
+# 테스트는 내 PC 의 .env(PUBLIC_BASE_URL·LOGIN_* 등)에 영향받지 않도록 읽지 않는다 (tests/conftest.py 가 켬).
+if os.getenv("TELECOM_SKIP_DOTENV") != "1":
+    load_dotenv(REPO_ROOT / ".env")
+    load_dotenv(BACKEND_DIR / ".env")
 
 
 def _database_uri() -> str:
@@ -52,9 +54,10 @@ class Config:
     SESSION_COOKIE_NAME = "__Host-telecom_session"
     SESSION_IDLE_MINUTES = 30
     SESSION_ABSOLUTE_HOURS = 8
-    LOGIN_WINDOW_MINUTES = 15
-    LOGIN_MAX_PER_ACCOUNT = 5
-    LOGIN_MAX_PER_IP = 20
+    # 기본값은 통합 기준 7절. 시연·시험에서 창을 줄일 때만 환경변수로 바꾼다 (예: LOGIN_WINDOW_MINUTES=1)
+    LOGIN_WINDOW_MINUTES = int(os.getenv("LOGIN_WINDOW_MINUTES", "15"))
+    LOGIN_MAX_PER_ACCOUNT = int(os.getenv("LOGIN_MAX_PER_ACCOUNT", "5"))
+    LOGIN_MAX_PER_IP = int(os.getenv("LOGIN_MAX_PER_IP", "20"))
 
     # n8n → POST /api/internal/incident-events 전용 토큰 (관리자 세션과 별개)
     INCIDENT_API_TOKEN = os.getenv("INCIDENT_API_TOKEN", "")

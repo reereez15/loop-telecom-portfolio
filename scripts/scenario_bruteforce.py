@@ -94,7 +94,7 @@ class InProcess:
 
 
 class OverHttp:
-    def __init__(self, base, ca, admin_base=None):
+    def __init__(self, base, ca, admin_base=None, wait_minutes=0):
         import requests
         import urllib3
         urllib3.disable_warnings()
@@ -105,6 +105,7 @@ class OverHttp:
         self.verify = ca or True
         self.mode = f"HTTP ({self.base})"
         self.token = _token_from_env()
+        self.wait_minutes = wait_minutes
 
     def client(self):
         return self.requests.Session()
@@ -125,7 +126,13 @@ class OverHttp:
         return None  # 실제 환경에서는 Graylog 검색으로 확인한다
 
     def expire_window(self, email):
-        print("   · 실제 환경: 15분(LOGIN_WINDOW_MINUTES) 기다린 뒤 다시 로그인하세요.")
+        # 창이 남아 있으면 잠금(403)보다 시도 제한(429)이 먼저 걸린다. 서버의 LOGIN_WINDOW_MINUTES 만큼 기다린다.
+        if not self.wait_minutes:
+            print("   · --wait-minutes 없음: 제한 창이 남아 5-1·5-3 이 429 로 실패할 수 있습니다.")
+            return
+        seconds = int(self.wait_minutes * 60) + 5
+        print(f"   · 제한 창이 지나도록 {seconds}초 대기 (서버 LOGIN_WINDOW_MINUTES={self.wait_minutes})")
+        time.sleep(seconds)
 
 
 def _json(r):
@@ -198,7 +205,7 @@ def run(t, victim, admin):
     bot = t.client()
     code, body = t.post(bot, "/api/internal/account-locks",
                         json={"account_hash": h, "reason": "브루트포스 자동 잠금(시나리오 재현)"},
-                        headers={"Authorization": f"Bearer {t.token}", "X-Workflow": "8-account-lock"})
+                        headers={"Authorization": f"Bearer {t.token}", "X-Workflow": "8-login-bruteforce"})
     data = body.get("data") or {}
     step("4. 자동 대응(n8n → 계정 잠금 API)", code in (200, 201) and data.get("locked") is True,
          f"HTTP {code}, result={data.get('result')}")
@@ -247,8 +254,10 @@ def main():
     ap.add_argument("--victim", default="alice@test.local")
     ap.add_argument("--admin", default="admin@test.local")
     ap.add_argument("--out", help="결과 JSON 저장 경로")
+    ap.add_argument("--wait-minutes", type=float, default=0,
+                    help="HTTP 모드: 5단계 전에 기다릴 시간(분). 서버 LOGIN_WINDOW_MINUTES 와 같게 (기본 15)")
     a = ap.parse_args()
-    t = OverHttp(a.base_url, a.ca, a.admin_url) if a.base_url else InProcess()
+    t = OverHttp(a.base_url, a.ca, a.admin_url, a.wait_minutes) if a.base_url else InProcess()
     report = run(t, a.victim.lower(), a.admin.lower())
     if a.out:
         Path(a.out).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

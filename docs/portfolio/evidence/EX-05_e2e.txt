@@ -1,0 +1,2 @@
+[  0.0s] 1. 공격 로그 전송 (GELF UDP 127.0.0.1:12201, src_ip=198.51.100.5)
+[ 54.2s] 2~4. Graylog 탐지 → n8n → 인시던트 등록: #12 'ED-EX-05 | SQL Injection 의심' high OPEN

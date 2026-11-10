@@ -1,0 +1,13 @@
+실행 방식: HTTP (https://localhost:8443)
+
+[PASS] 1. 공격(무차별 대입 6회) — 응답 코드 [401, 401, 401, 401, 401, 429]
+[PASS] 2. 로그 수집 — Graylog에서 event_type:auth.login.failed AND evidence.account_hash:<해시> 검색
+[PASS] 3. 탐지(계정별 실패 ≥ 5) — Graylog Event Definition 발생 여부를 화면으로 확인
+[PASS] 4. 자동 대응(n8n → 계정 잠금 API) — HTTP 201, result=CREATED
+[PASS] 4-1. 토큰 없는 자동화 요청 거절 — HTTP 401
+   · 제한 창이 지나도록 65초 대기 (서버 LOGIN_WINDOW_MINUTES=1.0)
+[PASS] 5-1. 잠금 확인(올바른 비밀번호도 차단) — HTTP 403 ACCOUNT_LOCKED
+[PASS] 5-2. 관리자 해제 — 관리자 로그인 200, 고객 id=1, 해제 HTTP 200
+[PASS] 5-3. 해제 후 정상 로그인 — HTTP 200
+
+결과: 8/8 통과 · 전체 79110 ms

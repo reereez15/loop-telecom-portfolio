@@ -358,7 +358,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Graylog 집계 이벤트(브루트포스)에서 잠금 대상 생성\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json ?? {};\n  const b = j.body ?? j;\n  const events = b.alerts ?? b.events ?? (b.username ? [b] : []);\n  for (const e of events) {\n    const user = e.username ?? e.user;\n    if (!user) continue;\n    const cnt = e.count ?? e.fail_count ?? '?';\n    out.push({ json: {\n      username: user,\n      reason: `브루트포스 자동 잠금: ${cnt}회 로그인 실패`,\n      fail_count: Number(e.count ?? e.fail_count ?? 0),\n      src_ip: e.src_ip ?? '0.0.0.0',\n      student: e.student ?? b.student ?? 'lsy',\n      severity: 'High', source: 'login-guard',\n    }});\n  }\n}\nreturn out;"
+        "jsCode": "// Graylog 집계 이벤트(브루트포스)에서 잠금 대상 생성\n// - 팀 모의 로그: username 기준 (ED-08)\n// - 앱 실제 로그: 이메일 대신 account_hash 기준 (ED-A1, 김준식 추가)\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json ?? {};\n  const b = j.body ?? j;\n  const events = b.alerts ?? b.events ?? ((b.username || b.account_hash) ? [b] : []);\n  for (const e of events) {\n    const user = e.username ?? e.user;\n    const hash = /^[0-9a-f]{64}$/.test(String(e.account_hash ?? '')) ? e.account_hash : undefined;\n    if (!user && !hash) continue;\n    const cnt = e.count ?? e.fail_count ?? '?';\n    out.push({ json: {\n      username: user,\n      account_hash: hash,\n      reason: `브루트포스 자동 잠금: ${cnt}회 로그인 실패`,\n      fail_count: Number(e.count ?? e.fail_count ?? 0),\n      src_ip: e.src_ip ?? '0.0.0.0',\n      student: e.student ?? b.student ?? 'lsy',\n      severity: 'High', source: 'login-guard',\n      event_definition: e.event_definition ?? b.event_definition ?? b.event_definition_title ?? 'ED-08 | 동일 계정 브루트포스',\n      event_type: 'auth.bruteforce.detected',\n    }});\n  }\n}\nreturn out;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -459,12 +459,16 @@
             {
               "name": "Content-Type",
               "value": "application/json"
+            },
+            {
+              "name": "X-Workflow",
+              "value": "8-login-bruteforce"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({email: $json.email || $json.username, account_hash: $json.account_hash, reason: $json.reason || \"Graylog 계정 잠금 판정\"}) }}",
+        "jsonBody": "={{ (() => { const t = $('판정(잠금)').item.json; const user = String(t.username || \"\"); return JSON.stringify({email: t.email || (user.includes(\"@\") ? user : undefined), account_hash: t.account_hash, reason: t.reason || \"Graylog 계정 잠금 판정\"}); })() }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -475,7 +479,7 @@
       ],
       "id": "cf41b6ed-7a63-4c63-8777-06f0586cfcec",
       "name": "HTTP 계정 block 요청",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {

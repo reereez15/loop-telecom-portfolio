@@ -1,0 +1,14 @@
+{
+  "scenario": "EX-05 SQL Injection (팀 규칙·워크플로: 김준오)",
+  "started_at": "2026-11-10T06:53:31+00:00",
+  "src_ip": "198.51.100.5",
+  "pass": true,
+  "incident_s": 54.2,
+  "incident": {
+    "id": 12,
+    "title": "ED-EX-05 | SQL Injection 의심",
+    "severity": "high",
+    "status": "OPEN",
+    "source": "scenario-alert"
+  }
+}

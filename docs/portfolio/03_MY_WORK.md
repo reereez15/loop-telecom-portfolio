@@ -12,7 +12,8 @@
 | 팀 공통 | pfSense·HAProxy·VPN·Suricata — **정동석** / Wazuh·Graylog·Zabbix·n8n 구성 — **김준오** | `network/`, `security/`, `monitoring/` |
 | **본인 작성·검증** | React 고객·관리자 화면, Flask 인증·업무·보안 API, 데이터 모델, 백엔드 테스트 113개 | 아래 커밋 표 |
 | **본인 작성·검증** | n8n이 부르는 내부 API(차단·잠금·회수·인시던트 등록)와 토큰 검증 — 김준오 님 워크플로가 호출하는 쪽 | `d2f7ec1`, `abf9332` |
-| **본인 (이번 포트폴리오)** | 민감정보 제거 스크립트, 혼자 설치용 compose 보완, 시나리오 재현 스크립트, Graylog 탐지 규칙 불일치 발견 | 이 저장소 `scripts/`, `docs/portfolio/` |
+| **본인 (이번 포트폴리오, 11-10)** | 민감정보 제거(저장소 기록·pfSense 백업), 혼자 설치용 compose·Wazuh 덧씌우기, 시나리오 재현 스크립트 3개, 앱 로그용 Graylog 규칙 ED-A1, n8n 워크플로 수정(식 오류·잠금 노드), 로컬 nginx 로그인 오류 수정 | 아래 6절, 이 저장소 `scripts/`, `docs/portfolio/` |
+| 팀원 작업을 쓴 곳 | Graylog 콘텐츠 팩·n8n 워크플로·Wazuh 규칙·모의 공격 스크립트(**김준오**), pfSense 설정(**정동석**), k3s·MySQL·HAProxy 운영 문서(**문경구**) — 원본 구조는 그대로 두고 로컬 주소·비밀값 자리·오류만 고쳤다 | `monitoring/`, `security/pfsense/`, `docs/operations/` |
 | 팀원 코드(웹 영역) | 멤버십 결제·대시보드 항목, 카카오페이 결제 복구, 포털 디자인 개편 — **문경구** | 아래 '팀원 작업' 표 |
 
 ## 2. 수치 (2026-11-10 측정)
@@ -86,9 +87,27 @@
 | 2026-10-22 | [`978d5d3`](https://github.com/telecom-carrier-Loop/telecom-security-project/commit/978d5d3) | https 부분을 위한 인증서 확인 |
 | 2026-10-22 | [`aa0f74b`](https://github.com/telecom-carrier-Loop/telecom-security-project/commit/aa0f74b) | 의존성 파일 추가 |
 
-## 6. 회의록·캡처
+## 6. 포트폴리오 정리 작업 (2026-11-10, 이 저장소)
+
+근거는 이 저장소의 커밋([commits](https://github.com/reereez15/loop-telecom-portfolio/commits/main))과 아래 파일이다.
+
+| 한 일 | 파일 | 검증 |
+|---|---|---|
+| 팀 저장소 기록에서 웹훅 1·토큰 3 제거 후 가져오기, 브랜치 정리(main 만) | `scripts/sanitize_repo.py`, `scripts/check_secrets.py` | `check_secrets.py --history` → 비밀값 없음 |
+| pfSense 백업 비밀값 21개 제거, 구성 설명 | `scripts/sanitize_pfsense.py`, `security/pfsense/` | 제거 후 잔여 검사 0건 |
+| 로컬 관제 스택 정의, n8n 2.40 고정 | `monitoring/compose/monitoring.compose.yaml`, `.env.example` | Graylog·n8n 기동 |
+| n8n 본문 식 `}}` 오류 수정, 인시던트 노드 10개 켬 | `monitoring/n8n/workflows/n8n_경로_실사용URL_적용.json` | EX-05 → 인시던트 등록 54.2초 |
+| 앱 로그용 브루트포스 규칙 ED-A1 + n8n 잠금 노드 수정 | `scripts/graylog_add_account_bruteforce.py`, 같은 워크플로 | S-A1 전 구간 7/7, 39.8초 |
+| 로그인 제한 값 환경변수화, 시나리오 대기 옵션 | `backend/app/config.py`, `scripts/scenario_bruteforce.py` | HTTP 8/8, 테스트 150개 |
+| 테스트가 개인 `.env` 를 읽지 않게 | `backend/app/config.py`, `backend/tests/conftest.py` | 이전 실패 1건 해결, 150 passed |
+| 로컬 nginx Host 헤더 수정(브라우저 로그인 403) | `infrastructure/docker/compose/local/nginx*.conf` | 브라우저 로그인 200 |
+| 전 구간·EX-05 재현 스크립트, 캡처 7장 | `scripts/scenario_bruteforce_e2e.py`, `scripts/scenario_ex05_sqli.py`, `docs/portfolio/evidence/` | [02 시나리오](02_SCENARIOS.md) |
+| Wazuh 로컬 실행용 덧씌우기(포트 127.0.0.1) | `monitoring/wazuh/compose.localhost.yaml` | ⬜ 실행 결과 미기록 |
+
+## 7. 회의록·캡처
 
 - 팀 저장소 `docs/meeting-notes/`는 비어 있습니다. 날짜별 진행은 `monitoring/진행 상황/`(김준오·문경구 작성)과 `docs/operations/`에 있습니다.
-- 본인 회의 메모·캡처는 `docs/portfolio/evidence/`에 날짜를 붙여 추가합니다 (예: `2026-10-20_보안화면.png`).
+- 2026-11-10 로컬 재현 캡처 7장: [`evidence/screenshots/`](evidence/screenshots/) (설명은 [02 시나리오](02_SCENARIOS.md)). 실행 결과 원문: `evidence/*.txt`, `*.json`.
+- 본인 회의 메모·학원 장비 캡처는 `docs/portfolio/evidence/`에 날짜를 붙여 추가합니다 (예: `2026-10-20_보안화면.png`).
 - 캡처 전 확인: 주소창·터미널·`.env` 화면에 토큰·웹훅·비밀번호가 보이지 않을 것.
 
