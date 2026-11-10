@@ -1,0 +1,56 @@
+{
+  "mode": "in-process (Flask test client + SQLite)",
+  "passed": 8,
+  "total": 8,
+  "total_ms": 1120,
+  "steps": [
+    {
+      "step": "1. 공격(무차별 대입 6회)",
+      "pass": true,
+      "detail": "응답 코드 [401, 401, 401, 401, 401, 429]",
+      "elapsed_ms": 661
+    },
+    {
+      "step": "2. 로그 수집",
+      "pass": true,
+      "detail": "auth.login.failed 5건, auth.rate_limited 1건, 이메일 원문 노출 없음",
+      "elapsed_ms": 661
+    },
+    {
+      "step": "3. 탐지(계정별 실패 ≥ 5)",
+      "pass": true,
+      "detail": "account_hash 497f085b5955… 실패 5건 → 규칙 일치",
+      "elapsed_ms": 661
+    },
+    {
+      "step": "4. 자동 대응(n8n → 계정 잠금 API)",
+      "pass": true,
+      "detail": "HTTP 201, result=CREATED",
+      "elapsed_ms": 665
+    },
+    {
+      "step": "4-1. 토큰 없는 자동화 요청 거절",
+      "pass": true,
+      "detail": "HTTP 401",
+      "elapsed_ms": 666
+    },
+    {
+      "step": "5-1. 잠금 확인(올바른 비밀번호도 차단)",
+      "pass": true,
+      "detail": "HTTP 403 ACCOUNT_LOCKED",
+      "elapsed_ms": 791
+    },
+    {
+      "step": "5-2. 관리자 해제",
+      "pass": true,
+      "detail": "관리자 로그인 200, 고객 id=1, 해제 HTTP 200",
+      "elapsed_ms": 965
+    },
+    {
+      "step": "5-3. 해제 후 정상 로그인",
+      "pass": true,
+      "detail": "HTTP 200",
+      "elapsed_ms": 1120
+    }
+  ]
+}

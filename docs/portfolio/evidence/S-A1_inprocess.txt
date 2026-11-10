@@ -1,0 +1,12 @@
+실행 방식: in-process (Flask test client + SQLite)
+
+[PASS] 1. 공격(무차별 대입 6회) — 응답 코드 [401, 401, 401, 401, 401, 429]
+[PASS] 2. 로그 수집 — auth.login.failed 5건, auth.rate_limited 1건, 이메일 원문 노출 없음
+[PASS] 3. 탐지(계정별 실패 ≥ 5) — account_hash 497f085b5955… 실패 5건 → 규칙 일치
+[PASS] 4. 자동 대응(n8n → 계정 잠금 API) — HTTP 201, result=CREATED
+[PASS] 4-1. 토큰 없는 자동화 요청 거절 — HTTP 401
+[PASS] 5-1. 잠금 확인(올바른 비밀번호도 차단) — HTTP 403 ACCOUNT_LOCKED
+[PASS] 5-2. 관리자 해제 — 관리자 로그인 200, 고객 id=1, 해제 HTTP 200
+[PASS] 5-3. 해제 후 정상 로그인 — HTTP 200
+
+결과: 8/8 통과 · 전체 1054 ms
