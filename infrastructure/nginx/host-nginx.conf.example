@@ -49,7 +49,14 @@ http {
         location = /api/internal { return 404; }
         location ^~ /api/internal/ { return 404; }
         location /api/ { proxy_pass http://telecom_api; }
-        location / { proxy_pass http://telecom_web; }
+        location / {
+            proxy_pass http://telecom_web;
+            # 화면용 보안 헤더 (API 응답은 Flask 가 붙임: backend/app/core/security_headers.py)
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-Frame-Options "DENY" always;
+            add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+            add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+        }
     }
     server {
         listen __MGMT_IP__:443 ssl;
@@ -57,7 +64,14 @@ http {
         location = /api/internal { return 404; }
         location ^~ /api/internal/ { return 404; }
         location /api/ { proxy_pass http://telecom_api; }
-        location / { proxy_pass http://telecom_web; }
+        location / {
+            proxy_pass http://telecom_web;
+            # 화면용 보안 헤더 (API 응답은 Flask 가 붙임: backend/app/core/security_headers.py)
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-Frame-Options "DENY" always;
+            add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+            add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+        }
     }
     server {
         listen 127.0.0.1:18080;

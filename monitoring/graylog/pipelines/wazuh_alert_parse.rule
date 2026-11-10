@@ -1,0 +1,24 @@
+// Graylog 파이프라인 규칙: Wazuh syslog_output(JSON) 경보 → wazuh_rule_id 등 필드 — 김준식 정리
+// 팀 규칙 ED-07·ED-WZ-02 가 wazuh_rule_id 필드를 찾는다. 이 규칙이 없거나 파이프라인이 스트림에 연결되지 않으면
+// 메시지는 들어와도 필드가 생기지 않아 두 규칙이 영원히 걸리지 않는다(Last matched: Never).
+// 넣는 곳: System → Pipelines → Manage rules → Create Rule (붙여넣기)
+//         → Pipeline 'Wazuh 경보' Stage 0 에 추가 → Edit connections 에서 Wazuh 입력이 들어오는 스트림(기본은 Default Stream)에 연결
+// 상태: 로컬 Wazuh 를 띄우지 못해 실제 경보로는 아직 미검증 (docs/portfolio/01_INSTALL.md 3-1)
+rule "wazuh 경보 파싱"
+when
+  contains(to_string($message.message), "\"rule\":") && contains(to_string($message.message), "\"agent\":")
+then
+  // syslog 머리말(<132>... ossec:) 뒤의 JSON 본문만 꺼낸다
+  let found = regex("(\\{.*\\})\\s*$", to_string($message.message));
+  let body = to_string(found["0"]);
+  let fields = select_jsonpath(body, {
+    wazuh_rule_id: "$.rule.id",
+    wazuh_rule_level: "$.rule.level",
+    wazuh_rule_description: "$.rule.description",
+    wazuh_agent: "$.agent.name",
+    src_ip: "$.data.srcip",
+    syscheck_path: "$.syscheck.path"
+  });
+  set_fields(fields);
+  set_field("source_type", "wazuh");
+end

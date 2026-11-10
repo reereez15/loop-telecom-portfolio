@@ -23,7 +23,7 @@
 | 본인 커밋 (머지 제외) | 24개, 2026-10-19 ~ 11-03 |
 | `web` 브랜치 PR (병합) | 11개 |
 | 최초 작성 파일 | `backend/app` 65개 중 52개, `frontend/src` 75개 중 54개 |
-| 백엔드 테스트 | 본인 작성 113개 통과 / 전체 150개 통과 |
+| 백엔드 테스트 | 본인 작성 117개 통과 (팀 기간 113 + 11-10 보안 헤더 4) / 전체 154개 통과 |
 | 프론트 빌드 | 성공 (모듈 90개) |
 
 ## 3. 날짜별 커밋
@@ -103,6 +103,8 @@
 | 로컬 nginx Host 헤더 수정(브라우저 로그인 403) | `infrastructure/docker/compose/local/nginx*.conf` | 브라우저 로그인 200 |
 | 전 구간·EX-05 재현 스크립트, 캡처 7장 | `scripts/scenario_bruteforce_e2e.py`, `scripts/scenario_ex05_sqli.py`, `docs/portfolio/evidence/` | [02 시나리오](02_SCENARIOS.md) |
 | Wazuh 로컬 실행용 덧씌우기(포트 127.0.0.1) | `monitoring/wazuh/compose.localhost.yaml` | ⬜ 실행 결과 미기록 |
+| 보안 응답 헤더 추가(수업 노트 대조) | `backend/app/core/security_headers.py`, `nginx*.conf`, `host-nginx.conf.example` | 테스트 4개 추가, 154 passed |
+| Wazuh → Graylog 파싱 규칙·연동 순서 | `monitoring/graylog/pipelines/wazuh_alert_parse.rule`, 설치 가이드 3-1 | ⬜ 미검증 |
 
 ## 7. 회의록·캡처
 

@@ -5,7 +5,7 @@
 
 | 단계 | 구성 | 학원 실습망에서의 위치 | 이 가이드의 재현 방식 | 본인 PC 검증 (2026-11-10) |
 |---|---|---|---|---|
-| 0 | 코드만 확인 | — | Python 가상환경 | ✅ 테스트 150개 통과, 시나리오 8/8 |
+| 0 | 코드만 확인 | — | Python 가상환경 | ✅ 테스트 154개 통과, 시나리오 8/8 |
 | 1 | 웹·API·DB | PC1·PC2 k3s + MySQL 8.4 복제 | Docker Compose 1대 | ✅ 고객 8443·관리자 8444 로그인, HTTP 시나리오 8/8 |
 | 2 | Graylog·n8n | Graylog=PC1, n8n=PC2 Docker | Docker Compose 1대 | ✅ 브루트포스 전 구간 7/7(39.8초), EX-05 인시던트 등록(54.2초) |
 | 3 | Wazuh | PC2 Docker | 공식 wazuh-docker single-node | ⬜ 명령·덧씌우기 파일까지 준비, 실행 결과 미기록 |
@@ -24,7 +24,7 @@ python infrastructure/tools/prepare-local.py   # .env 와 .secrets/tls 를 무�
 **확인 (Docker 없이)**
 ```powershell
 cd backend; python -m venv .venv; .\.venv\Scripts\activate; pip install -r requirements.txt
-python -m pytest -q                       # 150 passed
+python -m pytest -q                       # 154 passed
 python ..\scripts\scenario_bruteforce.py  # 결과: 8/8 통과
 deactivate; cd ..
 ```
@@ -124,9 +124,14 @@ docker compose -f generate-indexer-certs.yml run --rm generator
 docker compose -f docker-compose.yml -f ..\..\loop-telecom-portfolio\monitoring\wazuh\compose.localhost.yaml up -d
 docker cp ..\..\loop-telecom-portfolio\monitoring\wazuh\local_rules.xml single-node-wazuh.manager-1:/var/ossec/etc/rules/local_rules.xml
 docker cp ..\..\loop-telecom-portfolio\monitoring\wazuh\local_decoder.xml single-node-wazuh.manager-1:/var/ossec/etc/decoders/local_decoder.xml
+# docker cp 로 넣은 파일은 root 소유라 manager 가 못 읽을 수 있다 → 소유자·권한을 맞춘다
+docker exec single-node-wazuh.manager-1 bash -c "chown wazuh:wazuh /var/ossec/etc/rules/local_rules.xml /var/ossec/etc/decoders/local_decoder.xml && chmod 660 /var/ossec/etc/rules/local_rules.xml /var/ossec/etc/decoders/local_decoder.xml"
+# 재시작 전에 규칙 문법 검사 — 오류가 있으면 재시작 후 manager 가 뜨지 않는다
+docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-analysisd -t
 docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart
 cd ..\..\loop-telecom-portfolio
 ```
+> ⚠ `docker compose down -v` 는 쓰지 않는다. 볼륨이 지워지면 에이전트 등록·규칙·인증서가 모두 사라진다. 끌 때는 `down` 만.
 
 | 접속 | 주소 |
 |---|---|
@@ -136,6 +141,25 @@ cd ..\..\loop-telecom-portfolio
 **확인**: `docker exec -it single-node-wazuh.manager-1 /var/ossec/bin/wazuh-logtest` 에 `monitoring/graylog/attack-test/PC1_to_PC1/Wazuh/Wazuh_실제룰엔진_logtest_보조.txt` 의 로그 줄을 넣어 규칙 100230~100237 이 걸리는지 본다.
 ※ 컨테이너 이름은 `docker ps` 로 확인. 443 이 다른 프로그램과 겹치면 `compose.localhost.yaml` 에서 `127.0.0.1:8445:5601` 처럼 바꾼다.
 ※ 학원망의 매니저 `ossec.conf`·에이전트 설정은 팀원 PC2 에만 있고 저장소에 없다(아래 '팀 PC 에만 있던 설정').
+※ 대시보드·`alerts.json` 의 `timestamp` 는 UTC 로 저장될 수 있다. KST 로 보이는 컨테이너 로그와 비교할 때 +9시간을 맞춰 본다.
+
+### 3-1. Wazuh 경보를 Graylog 로 (미검증 — 순서만 정리)
+
+팀 Graylog 규칙 `ED-07`(100211·100220~100222)·`ED-WZ-02`(100230~100237)는 `wazuh_rule_id` 필드를 찾는다. 이 필드는 Wazuh 가 만들지 않고 **Graylog 파이프라인이 만들어야** 하는데, 그 설정이 팀 저장소에 없었다.
+
+1. Graylog: System → Inputs → `Syslog UDP` (또는 `Raw/Plaintext UDP`) 포트 `5140` 추가. Docker 로 띄웠다면 `monitoring.compose.yaml` 의 graylog `ports` 에 `127.0.0.1:5140:5140/udp` 추가.
+2. Wazuh manager `ossec.conf` 에 JSON 경보 전송 추가 후 `wazuh-control restart`:
+   ```xml
+   <syslog_output>
+     <server>graylog 주소(같은 Docker 망이면 graylog 컨테이너 IP)</server>
+     <port>5140</port>
+     <format>json</format>
+     <level>5</level>
+   </syslog_output>
+   ```
+   ※ 컨테이너 안에서 `localhost` 는 자기 자신이다. 다른 컨테이너는 서비스 이름이나 IP, 내 PC 는 `host.docker.internal`.
+3. 파이프라인 규칙 [`monitoring/graylog/pipelines/wazuh_alert_parse.rule`](../../monitoring/graylog/pipelines/wazuh_alert_parse.rule) 을 붙여 넣고 파이프라인 `Wazuh 경보` 를 **스트림에 연결**한다. 연결을 빠뜨리면 메시지는 들어와도 필드가 안 생겨 규칙이 `Never` 로 남는다.
+4. 확인: Graylog 검색 `_exists_:wazuh_rule_id` → 결과가 있으면 `ED-07`·`ED-WZ-02` 가 동작할 수 있는 상태.
 
 ## 4. pfSense (선택)
 
@@ -161,6 +185,7 @@ cd ..\..\loop-telecom-portfolio
 | 관리자 입구 | k3s NodePort 30444 + pfSense NAT | 로컬 `127.0.0.1:8444` (`compose.portfolio.yaml`) |
 | nginx Host 헤더 | 443 전제(`$host`) | `$http_host` (로컬 8443/8444 에서 로그인되게) |
 | Wazuh 실행 정의·`ossec.conf` | PC2 에만 | 공식 single-node + `monitoring/wazuh/compose.localhost.yaml`. **`ossec.conf` 는 아직 받지 못함** |
+| Wazuh → Graylog 파이프라인(`wazuh_rule_id` 필드) | PC1 Graylog 화면에서만 | `monitoring/graylog/pipelines/wazuh_alert_parse.rule` + 3-1 절 (미검증) |
 | pfSense 설정 | PC3 에만 | `security/pfsense/config.sanitized.xml` (비밀값 제거) |
 | k3s 매니페스트·MySQL 복제 | 저장소에 있음 (`infrastructure/`) | 노트북 재현은 Compose 1대로 대체 |
 

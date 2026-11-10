@@ -64,7 +64,7 @@ def main():
     definition = {
         "title": TITLE,
         "description": f"같은 account_hash 로그인 실패 {a.threshold}회 이상 / {a.window_minutes}분. "
-                       "앱 auth.login.failed 이벤트 기준(이메일 원문 없음).",
+                       "앱 auth.login.failed 이벤트 기준(이메일 원문 없음). MITRE ATT&CK T1110.001 Password Guessing.",
         "priority": 2, "alert": True,
         "config": {
             "type": "aggregation-v1",

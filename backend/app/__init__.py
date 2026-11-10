@@ -26,6 +26,8 @@ def create_app(config_class=Config) -> Flask:
 
     setup_logging(app)
     register_error_handlers(app)
+    from .core.security_headers import init_security_headers
+    init_security_headers(app)
     _register_blueprints(app)
 
     # 차단 IP 검사 → 세션 로드 순서 (차단된 IP는 세션 조회 전에 403)

@@ -15,7 +15,7 @@
 
 | 확인 | 결과 | 근거 |
 |---|---|---|
-| 백엔드 테스트 | **150개 통과** | `cd backend; python -m pytest -q` |
+| 백엔드 테스트 | **154개 통과** | `cd backend; python -m pytest -q` |
 | 브루트포스 → Graylog 탐지 → n8n 자동 잠금 → 관리자 해제 | **7/7, 탐지·잠금 39.8초** | [시나리오 S-A1](docs/portfolio/02_SCENARIOS.md), 캡처 7장 |
 | 같은 시나리오, 앱 API 단계별 (HTTPS) | **8/8** | [evidence/S-A1_http.txt](docs/portfolio/evidence/S-A1_http.txt) |
 | EX-05 SQL Injection 모의 공격 → 인시던트 자동 등록 | **54.2초** | [evidence/EX-05_e2e.txt](docs/portfolio/evidence/EX-05_e2e.txt) |
@@ -40,7 +40,7 @@ git clone https://github.com/reereez15/loop-telecom-portfolio.git
 cd loop-telecom-portfolio\backend
 python -m venv .venv; .\.venv\Scripts\activate
 pip install -r requirements.txt
-python -m pytest -q                      # 기대: 150 passed
+python -m pytest -q                      # 기대: 154 passed
 python ..\scripts\scenario_bruteforce.py # 기대: 8/8 통과
 ```
 
@@ -48,7 +48,7 @@ python ..\scripts\scenario_bruteforce.py # 기대: 8/8 통과
 
 | 영역 | 기능 | 코드 |
 |---|---|---|
-| 인증 | 회원가입·로그인, `__Host-` 세션 쿠키 + CSRF, 유휴 30분·최대 8시간 세션, 계정별 15분 5회·IP별 15분 20회 실패 제한, 계정 열거 방지 | `backend/app/auth/` |
+| 인증 | 회원가입·로그인, `__Host-` 세션 쿠키 + CSRF + Origin 검사, 보안 응답 헤더, 유휴 30분·최대 8시간 세션, 계정별 15분 5회·IP별 15분 20회 실패 제한, 계정 열거 방지 | `backend/app/auth/` |
 | 보안 관리 | 차단 IP·화이트리스트, 계정 잠금·해제, 관리자 권한 점검·회수, 자동화 기록, 인시던트 목록·삭제 | `backend/app/incidents/` |
 | 자동화 연동 | n8n 전용 토큰 API(`/api/internal/ip-blocks`, `account-locks`, `role-revocations`, `incident-events`), 자동화는 잠금만 하고 해제는 사람만 | `backend/app/incidents/protection*.py` |
 | 고객 업무 | 이용량·요금·청구, 멤버십 등급·포인트 적립, 포인트 상점, 공지, 1:1 문의, 카카오페이 테스트 결제 | `backend/app/{payments,membership,support}` |

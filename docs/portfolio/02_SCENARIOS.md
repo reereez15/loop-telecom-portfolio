@@ -11,11 +11,14 @@
 | EX-05 SQL Injection (팀 규칙) | `python scripts/scenario_ex05_sqli.py` | **인시던트 등록** | 54.2초 |
 
 > `--wait-minutes 1` 은 api 를 `LOGIN_WINDOW_MINUTES=1` 로 띄웠을 때([설치 가이드 1단계](01_INSTALL.md) '시연용') 쓴다. 기본값(15분)이면 `--wait-minutes 15`.
+> 시각: 표와 문서는 KST, Graylog·증거 JSON 의 `…Z` 시각은 UTC 다(+9시간).
 > 전 구간 스크립트는 반복할 때 `--victim` 이름을 바꾼다. 같은 계정은 Graylog 알림 유예(15분) 동안 다시 알리지 않는다.
 
 ---
 
 ## S-A1 · 로그인 무차별 대입 → 계정 자동 잠금 (본인 담당)
+
+MITRE ATT&CK: **T1110.001** Brute Force: Password Guessing → 대응 M1036 Account Use Policies(실패 제한·계정 잠금)
 
 ### 흐름
 
@@ -110,6 +113,8 @@ Graylog 가 1분마다 검사하므로 탐지 시간은 **최대 약 60초**다.
 ---
 
 ## EX-05 · SQL Injection 의심 → 인시던트 자동 등록 (팀 규칙: 김준오 / 로컬 재현: 본인)
+
+MITRE ATT&CK: **T1190** Exploit Public-Facing Application
 
 ```powershell
 python scripts/scenario_ex05_sqli.py --out docs/portfolio/evidence/EX-05_e2e.json
