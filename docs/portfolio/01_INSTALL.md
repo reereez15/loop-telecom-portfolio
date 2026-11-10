@@ -110,7 +110,7 @@ docker compose -f monitoring/compose/monitoring.compose.yaml --env-file .env up 
 ```powershell
 python scripts/scenario_ex05_sqli.py                 # 약 1분 → 인시던트 #N 'ED-EX-05 | SQL Injection 의심' high OPEN
 python scripts/scenario_bruteforce_e2e.py --register --victim s-a1-01@test.local --wait-minutes 1 --graylog-password-file .secrets/graylog-admin.txt
-                                                     # 7/7 통과 · 탐지까지 약 40~60초
+                                                     # 7/7 통과 · 탐지까지 보통 40~60초 (재시작 직후 72초까지 관측)
 ```
 
 ## 3. Wazuh 4.9 (single-node)
