@@ -77,8 +77,11 @@ docker compose -f monitoring/compose/monitoring.compose.yaml --env-file .env up 
 
 기본 설정:
 1. **Graylog 입력 만들기**: System → Inputs → `GELF UDP` → Launch, Bind address `0.0.0.0`, Port `12201`.
-2. **콘텐츠 팩 설치**: System → Content Packs → Upload → `monitoring/local/graylog/Graylog_Wazuh분할.json` → Install. (탐지 규칙 18개 + n8n 알림. 알림 주소는 `http://n8n:5678/webhook/...`로 바뀌어 있음)
+2. **콘텐츠 팩 설치**: System → Content Packs → Upload → `monitoring/local/graylog/Graylog_Wazuh분할.json` → Install. (탐지 규칙 19개 + n8n 알림 10개. 알림 주소는 `http://n8n:5678/webhook/...`로 바뀌어 있음)
+   - **URL 허용 목록 추가 필수**: System → Configurations → URL Whitelist 에 정규식 `^http://n8n:5678/webhook/.*$` 추가. 없으면 Graylog 로그에 `URL ... is not whitelisted` 가 남고 n8n 이 호출되지 않는다.
 3. **n8n 워크플로 가져오기**: Workflows → Import from File → `monitoring/local/n8n/n8n_경로_실사용URL_적용.json` → 저장 → Active 켜기.
+   - n8n **2.40.0 이상** 필요(`N8N_IMAGE`). 워크플로가 `httpRequest 4.5`·`set 3.5` 노드를 써서 1.x 에서는 활성화 단계에서 `Cannot read properties of undefined` 오류가 난다.
+   - 앱 API 를 부르는 노드 10개의 본문 식에 들어 있던 `}}` 가 n8n 식(`{{ … }}`)을 중간에서 닫아 `invalid syntax` 가 나던 문제를 고쳤다(`} }` 로 띄어 씀). 그래서 팀 원본에서 꺼져 있던 이 노드들을 켰다.
 4. 앱 로그를 Graylog로 보내려면 `.env`에 `GRAYLOG_GELF_HOST=graylog`를 넣고 1단계의 마지막 `up -d` 를 다시 실행.
 
 **확인**

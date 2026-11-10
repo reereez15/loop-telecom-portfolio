@@ -66,7 +66,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -77,7 +77,7 @@
       ],
       "id": "753b53f0-7ae3-42ca-b314-deabdb81c58d",
       "name": "대시보드 POST",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -261,7 +261,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -272,7 +272,7 @@
       ],
       "id": "ae7665d0-668f-4c60-ad13-09bfe0693230",
       "name": "보안 이벤트 기록",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -496,7 +496,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -507,7 +507,7 @@
       ],
       "id": "cf64e3fa-9b81-433b-96a7-df2cb5dd94d4",
       "name": "HTTP 인시던트",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -544,7 +544,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -555,7 +555,7 @@
       ],
       "id": "c515c3b1-1905-48ed-a0f7-4af324906086",
       "name": "대시보드 POST1",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -576,7 +576,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -587,7 +587,7 @@
       ],
       "id": "bbb7a7e5-86d7-4f55-b4ed-d66ca94d0951",
       "name": "대시보드 POST3",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -608,7 +608,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -619,7 +619,7 @@
       ],
       "id": "098dd478-ca20-4b45-b06f-7ac396ba77ca",
       "name": "대시보드 POST4",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -640,7 +640,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -651,7 +651,7 @@
       ],
       "id": "9ebe69dc-978d-4561-9e0d-5f4d4d86931f",
       "name": "대시보드 POST5",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -672,7 +672,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -683,7 +683,7 @@
       ],
       "id": "61df00fd-7098-4e66-9f4d-2301b7e4fd86",
       "name": "대시보드 POST6",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -762,7 +762,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -773,7 +773,7 @@
       ],
       "id": "7fcad498-f5b4-415b-94ab-a69570f2d534",
       "name": "대시보드 POST2",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
@@ -794,7 +794,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null}}; })()) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const e=$json; const clean=(v,d='')=>String(v??d); const severity=clean(e.severity,'medium').toLowerCase(); const sev=['critical','high','medium','low','info'].includes(severity)?severity:'medium'; const rawType=clean(e.event_type || 'security.attack.detected'); const eventType=/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/.test(rawType)?rawType:'security.attack.detected'; const src=clean(e.source||'graylog').toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(0,30)||'graylog'; const id=clean(e.event_id||e.id||e.event_key||('n8n-'+Date.now()),'n8n-unknown').slice(0,128); const at=clean(e.detected_at||new Date().toISOString()); return {schema_version:'1.0',source:src,event_id:id,event_type:eventType,detected_at:at,severity:sev,title:clean(e.event_definition||e.title||e.rule||'Graylog 보안 경보').slice(0,200),asset:{host:clean(e.agent||e.host||'').slice(0,64)||null,service:'flask'},scenario_id:clean(e.scenario_id||'').slice(0,64)||null,description:clean(e.reason||e.description||'보안 이벤트 자동 수신').slice(0,5000),evidence:{src_ip:e.src_ip||e.ip||null,username:e.username||null,decision:e.decision||e.action||null,wazuh_rule_id:e.rule_id||null,group_key:e.event_key||e.group_key||null} }; })()) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -805,7 +805,7 @@
       ],
       "id": "2d6cdc80-b103-417f-8eff-adc18ddfb611",
       "name": "대시보드 POST7",
-      "disabled": true
+      "disabled": false
     },
     {
       "parameters": {
